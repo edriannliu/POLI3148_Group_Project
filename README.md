@@ -1,3 +1,7 @@
 # POLI3148_Group_Project
 
-# experimenting with pulling and pushing
+Timeline:
+
+1.  Finish tagging tweets and uploading to github (11/14)
+2.  Finish downloading tweets (11/15)
+3.  Try out OpenAI's GPT
