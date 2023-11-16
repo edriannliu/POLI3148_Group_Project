@@ -6,3 +6,12 @@ d_hamas_0721_count <- d_hamas_0721 |>
   count()
 print(d_hamas_0721_count)
 
+
+
+chatgpt_hamas <- read_csv("data/twitter_data_with_sentiment.csv")
+
+chatgpt_hamas_count <- chatgpt_hamas |>
+  group_by(Sentiment) |>
+  count()
+
+

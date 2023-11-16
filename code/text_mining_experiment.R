@@ -1,4 +1,9 @@
-# loading data & identifying language ----
+# We did some experiments using text mining method for sentiment analysis,
+# and we think this method wouldn't work because there's too much nuance in 
+# the tweets (satire, double negation, etc).
+
+
+# 1.1 loading data & identifying language ----
 
 library(tidyverse)
 
@@ -6,14 +11,27 @@ d <- read.csv("data/israel_1020_1028.csv", stringsAsFactors = FALSE)
 
 library("textcat")
 
+# I found this package through google which filters out language. It identifies
+# English pretty accurately (low false-positive rate), but it leaves out a lot
+# of English tweets as non-English (high false-negative rate).
+
 d$language <- textcat(d$text)
 
-d_select_english <- d |>
-  filter(platform == "twitter",
-         language == "english") |>
+d_english <- d |>
+  filter(platform == "twitter") |>
+  filter(language %in% c("english", "scots")) |> # scots english included
   select(text, created_at, language)
 
-# removing unwanted stuff
+# for instance, lot of "middle_frisian" is English, but some are not
+d_mf <- d |>
+  filter(language == "middle_frisian") |>
+  select(text, language)
+
+
+# 1.2 cleaning data (removing unwanted things) ----
+
+# I found this function on google when researching about sentiment analysis
+# on twitter, which cleans unwanted elements in a tweet (emojis, @, links, etc.)
 
 clean = function(text) {
   text = iconv(text, "latin1", "ASCII", sub="") #改變字的encoding
@@ -28,28 +46,75 @@ clean = function(text) {
   }
 
 
-d_clean <- d_select_english |>
-  mutate(clean(d_select_english$text)) |>
-  rename("cleaned_text" = "clean(d_select_english$text)") |>
+d_clean <- d_english |>
+  mutate(clean(d_english$text)) |>
+  rename("cleaned_text" = "clean(d_english$text)") |>
   select(cleaned_text, created_at)
-  #text套用資料清理
 
-# tokenizing
+
+# 1.3 sentiment analysis using sentimentr ----
+
+# I tried out this package for sentiment analysis because it identifies not only
+# positive and negative words, but also amplifiers, so it returns a more
+# accurate sentiment prediction than other packages. However, the result
+# is still extremely unreliable.
+
+library(sentimentr)
+
+d_attri <- sentiment_attributes(d_clean$cleaned_text)
+d_terms <- extract_sentiment_terms(d_clean$cleaned_text)
+
+
+d_sentiment <- d_clean |>
+  mutate(sentiment_by(d_clean$cleaned_text))
+
+d_positive <- d_sentiment |>
+  filter(ave_sentiment > 0) |>
+  select(cleaned_text, ave_sentiment)
+
+
+
+# Below are some other things I experimented with but are not very useful / 
+# relevant to this project.
+
+# tokenizing & counting ----
 
 library(tidytext)
 
-d_clean <- d_clean |>
+d_token <- d_clean |>
   mutate(original_text = cleaned_text) |>
   unnest_tokens("word", cleaned_text)
 
-# counting most frequent words
-
-d_clean_top_words <- d_clean |>
+d_token_top_words <- d_token |>
   anti_join(stop_words) |>
   count(word) |>
   arrange(desc(n))
 
-# sentiment analysis
+
+# tokenization (machine learning) ----
+
+library(tokenizers)
+library(tidyverse)
+library(tidytext)
+
+# split by any characters not alphanumeric
+d_en_tokenized <- strsplit(d_select_english$text,
+                           "[^a-zA-Z0-9]+")
+#transform list into dataframe
+d_en_token_df <- as.data.frame(cbind(d_en_tokenized))
+# issue: websites
+
+
+# stop words ----
+# remove not meaningful words like "a", "the"
+
+d_en_token_df |>
+  anti_join(get_stopwords(source = "snowball"))
+
+d_en_token_df |>
+  as_tibble()
+
+# sentiment analysis using "bing" ----
 
 library(textdata)
 get_sentiments("bing")
@@ -57,7 +122,6 @@ get_sentiments("bing")
 d_sentiment <- d_clean |>
   inner_join(get_sentiments("bing")) |>
   count(original_text, sentiment)
-
 
 # automated content analysis ----
 
@@ -81,44 +145,3 @@ d_corp <- corpus(d_clean, text_field = "cleaned_text")
 
 dfm_sentiment <- dfm(d_corp,
                      dictionary = sentiment_dictionary)
-
-# sentimentr ----
-
-library(sentimentr)
-
-d_c_d <- d_clean |>
-  mutate(sentiment_by(d_clean$cleaned_text))
-
-d_c_d_p <- d_c_d |>
-  filter(ave_sentiment > 0.5) |>
-  select(cleaned_text, ave_sentiment)
-
-d_se_a <- sentiment_attributes(d_clean$cleaned_text)
-
-d_sen <- sentiment(d_clean$cleaned_text)
-
-extract_sentiment_terms(d_clean$cleaned_text)
-
-# tokenization (machine learning) ----
-
-library(tokenizers)
-library(tidyverse)
-library(tidytext)
-
-# split by any characters not alphanumeric
-d_en_tokenized <- strsplit(d_select_english$text,
-                           "[^a-zA-Z0-9]+")
-#transform list into dataframe
-d_en_token_df <- as.data.frame(cbind(d_en_tokenized))
-# issue: websites
-
-
-
-# stop words ----
-# remove not meaningful words like "a", "the"
-
-d_en_token_df |>
-  anti_join(get_stopwords(source = "snowball"))
-
-d_en_token_df |>
-  as_tibble()
