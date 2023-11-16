@@ -1,6 +1,10 @@
-# We did some experiments using text mining method for sentiment analysis,
-# and we think this method wouldn't work because there's too much nuance in 
-# the tweets (satire, double negation, etc).
+# Title: Experimenting Text Mining Methods
+# Contributor: Edrian
+# Date: 2023-11-10
+# Description:
+# We did some very simple experiments using text mining method for sentiment
+# analysis, and we think this method wouldn't work because there's too much
+# nuance in the tweets (satire, double negation, etc).
 
 
 # 1.1 loading data & identifying language ----

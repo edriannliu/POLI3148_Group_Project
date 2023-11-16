@@ -1,7 +1,10 @@
 # Title: clean and synthesize two manually tagged datasets (by Luc and Jonny)
-# Description: -1 (Pro-Palestine), 0 (Neutral), 1 (Pro-Israel)
-# Contributer: Edrian
+# Contributor: Edrian
 # Date: 2023-11-16
+# Description:
+# The following code synthesizes the two manually tagged datasets in "data"
+# folder, cleans the data, and produce a combined dataset in "output" folder.
+# Note: -1 (Pro-Palestine), 0 (Neutral), 1 (Pro-Israel)
 
 # Load data
 
