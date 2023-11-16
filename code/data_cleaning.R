@@ -78,11 +78,13 @@ clean = function(text) {
 israel_combined_clean <- israel_combined_eng |>
   mutate(clean(israel_combined_eng$text)) |>
   rename("cleaned_text" = "clean(israel_combined_eng$text)") |>
-  select(cleaned_text, created_at)
+  select(cleaned_text, created_at) |>
+  distinct(cleaned_text, .keep_all = TRUE)
 
 # count tweets per day and plot changes
 
-israel_count <- israel_combined_eng |>
+israel_count <- israel_combined_clean |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
   group_by(created_at) |>
   count()
 
