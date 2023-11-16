@@ -7,7 +7,7 @@
 
 library(tidyverse)
 
-d <- read.csv("data/israel_1020_1028.csv", stringsAsFactors = FALSE)
+d <- read.csv("data/Israel_2028_tm_experiment.csv", stringsAsFactors = FALSE)
 
 library("textcat")
 
