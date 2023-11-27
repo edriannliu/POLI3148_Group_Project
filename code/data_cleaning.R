@@ -403,3 +403,27 @@ write.csv(palestine_count,
 
 rm(df, df_list, filtered_list, file, file_names, file_path)
 
+
+
+# Combining five datasets ----
+
+d_israel <- read.csv("output/israel_clean.csv")
+d_conflict <- read.csv("output/conflict_clean.csv")
+d_hamas <- read.csv("output/hamas_clean.csv")
+d_gaza <- read.csv("output/gaza_clean.csv")
+d_palestine <- read.csv("output/palestine_clean.csv")
+
+d_combined <- bind_rows(d_israel, d_conflict, d_hamas, d_gaza, d_palestine)
+d_combined <- d_combined |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
+  arrange(created_at)
+d_combined_count <- d_combined |>
+  group_by(created_at) |>
+  count()
+
+write.csv(d_combined,
+          file = "output/combined_clean.csv",
+          row.names = FALSE)
+write.csv(d_combined_count,
+          file = "output/combined_count.csv",
+          row.names = FALSE)
