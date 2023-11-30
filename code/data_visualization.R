@@ -10,7 +10,7 @@ library(ggpie)
 
 d <- read.csv("output/visualization_experiment.csv")
 
-# time line
+# time line ----
 
 d_avg_sen <- d |>
   group_by(created_at) |>
@@ -22,17 +22,17 @@ d_avg_sen |>
   geom_point() +
   geom_line()
 
-# pie chart
+# pie chart ----
 
 ggpie(d, Advanced_Sentiment)
 
-# stacked bar chart
+# stacked bar chart ----
 
 d |> mutate(sentiment = as.factor(Advanced_Sentiment)) |>
   ggplot(aes(x = created_at, fill = sentiment)) +
   geom_bar(position = "stack")
 
-# interaction count scatter plot
+# interaction count scatter plot ----
 
 # create fake column of interaction count
 d_interaction <- d |>
