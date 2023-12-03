@@ -8,14 +8,15 @@ library(ggplot2)
 library(dplyr)
 library(ggpie)
 
-d <- read.csv("output/visualization_experiment.csv")
+d <- read.csv("gpt_output/batch1.csv")
 
 # time line ----
 
 d_avg_sen <- d |>
+  mutate(sentiment = as.numeric(sentiment)) |>
+  filter(!is.na(sentiment)) |>
   group_by(created_at) |>
-  summarise(avg_sen = mean(Advanced_Sentiment)) |>
-  filter(!created_at == 7)
+  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
 
 d_avg_sen |>
   ggplot(aes(x = created_at, y = avg_sen)) +
@@ -24,21 +25,17 @@ d_avg_sen |>
 
 # pie chart ----
 
-ggpie(d, Advanced_Sentiment)
+ggpie(d, sentiment)
 
 # stacked bar chart ----
 
-d |> mutate(sentiment = as.factor(Advanced_Sentiment)) |>
+d |> mutate(sentiment = as.factor(sentiment)) |>
   ggplot(aes(x = created_at, fill = sentiment)) +
   geom_bar(position = "stack")
 
 # interaction count scatter plot ----
 
-# create fake column of interaction count
-d_interaction <- d |>
-  mutate(interaction = sample(1:1000, nrow(d), replace = TRUE))
-
 # actual plot
-d_interaction |> mutate(sentiment = as.factor(Advanced_Sentiment)) |>
-  ggplot(aes(y = sentiment, x = interaction, color = sentiment)) +
+d |> mutate(sentiment = as.factor(sentiment)) |>
+  ggplot(aes(y = sentiment, x = total_interactions_count, color = sentiment)) +
   geom_jitter()
