@@ -11,33 +11,20 @@ library(cowplot)
 
 d <- read.csv("gpt_output/batch_all.csv")
 
-# time line ----
+# entire dataset ----
 
-d_avg_sen <- d |>
-  mutate(sentiment = as.numeric(sentiment)) |>
-  filter(!is.na(sentiment)) |>
-  group_by(created_at) |>
-  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
-
-d_avg_sen |>
-  ggplot(aes(x = created_at, y = avg_sen)) +
-  geom_point() +
-  geom_line() +
-  geom_smooth(method = "gam", se = FALSE, linetype = "dashed") +
-  theme_classic()
-
-# pie chart ----
+## pie chart ----
 
 ggpie(d, sentiment)
 
-# stacked bar chart ----
+## stacked bar chart ----
 
 d |> mutate(sentiment = as.factor(sentiment)) |>
   ggplot(aes(x = created_at, fill = sentiment)) +
   geom_bar(position = "stack") +
   theme_classic()
 
-# interaction count scatter plot ----
+## interaction count scatter plot ----
 
 d |> mutate(sentiment = as.factor(sentiment)) |>
   ggplot(aes(y = sentiment, x = total_interactions_count, color = sentiment)) +
@@ -58,6 +45,8 @@ d_pa <- d_keywords |> filter(keyword_palestine == 1)
 d_co <- d_keywords |> filter(keyword_conflict == 1)
 d_ha <- d_keywords |> filter(keyword_hamas == 1)
 d_ga <- d_keywords |> filter(keyword_gaza == 1)
+
+## grid -----
 
 # all
 d_avg_sen <- d_keywords |>
@@ -145,6 +134,8 @@ p_ga <- d_avg_sen_ga |>
 
 plot_grid(p, p_is, p_pa, p_co, p_ha, p_ga)
 ggsave("gpt_output/Sentiment_Keyword_Grid.png", width = 8, height = 6)
+
+## color ----
 
 ggplot() +
   geom_point(data = d_avg_sen, mapping = aes(x = created_at, y = avg_sen), color = "red", linetype = "dashed") +
