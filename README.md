@@ -1,11 +1,13 @@
 ### POLI3148_Group_Project
 
-Things to do:
+-   Folders explanation:
 
--   Download data from info tracer
+    -   **data**: original data downloaded from Info Tracer
 
--   Synthesize data
+    -   **code**: all code, including data cleaning, tagging and visualization
 
--   Feed it to ChatGPT
+    -   **output**: pre-processed, unlabelled data
 
--   Plan on visualization
+    -   **gpt_labelled_data**: processed, labelled data
+
+    -   **gpt_output**: cleaned, labelled data; output figures
