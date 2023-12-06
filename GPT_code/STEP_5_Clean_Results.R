@@ -2,6 +2,8 @@
 # Gather GPT labeling results and clean
 # =================================================================
 
+
+## Step 5: Clean the returned data for analysis/visualization
 rm(list=ls())
 
 # Load packages ----

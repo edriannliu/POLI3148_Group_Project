@@ -24,7 +24,7 @@ d_train <- human_label_data
 table(d_train$sentiment)
 
 
-## Step 2: Apply ChatGPT to the "training" set
+## Step 2: Apply GPT to the "training" set
 # GPT4 
 api_key <- readLines("/cloud/project/data/api_info/api_key.txt")
 api_url <- readLines("/cloud/project/data/api_info/api_url_gpt4.txt")
@@ -81,4 +81,4 @@ d_train_merge <- d_train |> rename("human" = "sentiment") |> inner_join(d_gptLab
 with(d_train_merge, table(human, gpt, useNA = "ifany"))
 
 
-
+## Step 3: Revise the instructions to increase the similarity between human and GPT labels.

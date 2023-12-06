@@ -3,6 +3,8 @@
 # Running this script makes costly API calls. Treat it carefully
 # =================================================================
 
+
+## Step 4: Sentiment labeling of the tweets collected by GPT-4 (through API)
 rm(list=ls())
 
 # Load packages ----
