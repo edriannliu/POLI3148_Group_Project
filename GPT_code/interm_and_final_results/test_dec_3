@@ -1,0 +1,288 @@
+> # load packages
+> library(tidyverse)
+> library(httr)
+> library(jsonlite)
+> 
+> ## Step 1: Create instructions and a "training" set
+> instructions <- readLines("/cloud/project/data/Twitter_Sentiment_Analysis_Instructions(GPT4 rewritten)_v5.txt") |>
++   str_c(collapse = "\n") 
+> # HC: You need to merge instructions into ONE string. Previously it is a vector. This caused the error.
+> # Note: Some tweets return NULL results because of Microsoft's content moderation policies. This is interesting... 
+> cat(instructions)
+Project Overview:
+This project aims to analyze the polarization on Twitter between pro-Israel and pro-Palestine supporters. 
+
+Dataset Description:
+- You will receive a dataset containing tweets related to the Israeli-Palestinian conflict.
+- The dataset covers the period from October 7th to October 21st, 2023.
+
+Task:
+Your task is to label the tweets in the dataset with sentiment scores.
+
+Sentiment Labelling Guidelines:
+
+General guidelines:
+- The sentiment label should reflect the stance/sentiment of the author rather than face value.
+- Keywords can sometimes be misleading as the author of a tweet may quote someone they disagree with, or use rhetorical devices such as sarcasm to convey their stance and message to their audience.
+
+1. Label “1” for Pro-Israel Tweets:
+   - Tweets that express appreciation, praise, or support for Israel, the Israeli government, Benjamin Netanyahu, or the Israel Defense Forces (IDF).
+   - Examples include phrases like "I love Israel", "Israel has the right to defend itself", or any negative comments about Palestine, Hamas, or Palestinians.
+   - Look for Israeli naming conventions, e.g., "Palestinian terrorists", "Judea and Samaria", "IDF army".
+
+2. Label “0” for Neutral Tweets:
+   - Tweets that present a balanced view, factual information, or are unrelated to the conflict.
+   - Examples include neutral statements like “Both Hamas and Israel have committed war crimes”, “All lives matter, Israeli or Palestinian”, or factual updates like casualty numbers or unrelated news about Israel.
+
+3. Label “-1” for Pro-Palestine/Hamas Tweets:
+   - Tweets that show support or sympathy for Gaza, Palestine, Hamas, or Palestinians.
+   - Examples include phrases like "Free Palestine", "It is called Palestine, not Israel", or any negative comments about Israel, the Israeli government, Benjamin Netanyahu, or the Israeli Army.
+
+Output Requirements:
+Output "1", "0", or "-1" to each tweet as per the guidelines. Do not explain.> 
+> human_label_data <- read_csv("/cloud/project/data/converged_labeled_data.csv")
+Rows: 150 Columns: 3                                                             
+── Column specification ───────────────────────────────────────────────────────────
+Delimiter: ","
+chr (1): cleaned_text
+dbl (2): id_of_tweet, sentiment
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> 
+> set.seed(55)
+> d_train <- human_label_data |> 
++   select(id_of_tweet, cleaned_text, sentiment) |>
++   filter(!is.na(sentiment)) |>
++   group_by(sentiment) |>
++   sample_n(10) |> 
++   ungroup() |>
++   arrange(id_of_tweet)
+> 
+> table(d_train$sentiment)
+
+-1  0  1 
+10 10 10 
+> 
+> 
+> ## Step 2: Apply ChatGPT to the "training" set
+> # GPT4 
+> api_key <- readLines("/cloud/project/data/api_info/api_key.txt")
+> api_url <- readLines("/cloud/project/data/api_info/api_url_gpt4.txt")
+> 
+> # Make API calls
+> for (i in 1:nrow(d_train)) 
++ {
++   to_annotate_id <- d_train$id_of_tweet[i]
++   to_annotate_text <- d_train$cleaned_text[i]
++   # Above I do a small string operation -- replacing line breaks by spaces
++   to_annotate_raLabel <- d_train$sentiment[i]
++   
++   response <- POST(
++     url = api_url, 
++     add_headers(`Content-Type` = "application/json", `api-key` = api_key),
++     encode = "json",
++     body = list(
++       temperature = 0, 
++       messages = list(
++         list(role = "system", content = instructions),
++         list(role = "user", content = to_annotate_text))
++     )
++   )
++   to_annotate_gptLabel <- content(response)$choices[[1]]$message$content
++   
++   write_rds(response, str_c("/cloud/project/output/", to_annotate_id, ".rds")) 
++   Sys.sleep(0.5) # Sleep for 0.5 seconds after finishing each doc.
++   message(i, " of ", nrow(d_train))
++   # Optional below: Print results to get a "live update"
++   message("status_id: ", to_annotate_id, "\n", "text: ", to_annotate_text)
++   message("Human: ", to_annotate_raLabel, "\t", "ChatGPT: ", to_annotate_gptLabel, "\n")
++ }
+1 of 30
+status_id: 13
+text: The difference There is no way Hamas rocket can destroy a hospital Everybody knows it was done by Israel but they keep lying to themselves Israel is the real terrorist
+Human: -1	ChatGPT: 
+
+2 of 30
+status_id: 22
+text: Israel BOMBS civilian building in Gaza! I thought they were just fighting Hamas? Followsource
+Human: -1	ChatGPT: -1
+
+3 of 30
+status_id: 56
+text: This level of bombardment is insane by any standard! Israel is now flattening Tal AlHawa one of Gaza's affluent areas with most highrise residential buildings completely.
+Human: -1	ChatGPT: -1
+
+4 of 30
+status_id: 105
+text: As the Israeli military wipes entire Palestinian families off of the public record the Israeli regime is working tirelessly to equate Hamas to ISIS to justify genocide in peoples sick heads. This is the Iraq War all over again. The media has the bloodiest hands in all of this.
+Human: -1	ChatGPT: -1
+
+5 of 30
+status_id: 122
+text: Hamas issued a statement right after Israel told Gazans to evacuate south saying it's nothing but a strategy of Israeli psychological warfare. Guess what The Palestinians who fled south were deliberately targeted in airstrikes. Hamas was right.
+Human: -1	ChatGPT: -1
+
+6 of 30
+status_id: 185
+text: BREAKING Switzerland launches investigation into Hamas financing
+Human: 0	ChatGPT: 0
+
+7 of 30
+status_id: 204
+text: How did Hamas get an M4 with an ACOG optic?
+Human: 0	ChatGPT: 1
+
+8 of 30
+status_id: 232
+text: BREAKING Hamas Sends a Video Message to Israeli Forces Stating This is what awaits you when you enter Gaza. Source Hamas Official Website
+Human: 0	ChatGPT: 0
+
+9 of 30
+status_id: 260
+text: Damage caused by a Hamas rocket compared to damage caused by an Israeli airstrike. Now which one do you think hit the hospital?
+Human: -1	ChatGPT: -1
+
+10 of 30
+status_id: 279
+text: Dear Palestinians While the leaders of Hamas are living luxurious lives enjoying good lives they ask you to sacrifice yourselves and your children. Hamas doesn't care for the Palestinians. Hamas is the enemy of the Palestinian people.
+Human: 1	ChatGPT: 1
+
+11 of 30
+status_id: 346
+text: Warning Intelligence sources tell us that Hamas is working on a fabricated video to hide the misfiring of an Islamic Jihad rocket on a hospital in Gaza and falsely accuse Israel of doing so. Remember that this is a terrorist organization the same organization that runs the
+Human: 1	ChatGPT: 1
+
+12 of 30
+status_id: 420
+text: BBC Israel is claiming the alleged killing of 1300 Zionists by Palestinian freedom fighters is a 'terrorist attack'. BBC Hamas authorities have confirmed with us that Israel beyond a shadow of a doubt unequivocally and incontrovertibly did in fact shoot nuns with laser
+Human: 0	ChatGPT: -1
+
+13 of 30
+status_id: 433
+text: Shlomo Ron Shlomo gave his life to save his family. When Hamas invaded Kibbutz Nahal Oz the 85yearold sent his wife daughters and grandson into the saferoom. He believed that if the terrorists would see the lonely old man alone they'd murder him and move on sparring
+Human: 1	ChatGPT: 
+
+14 of 30
+status_id: 436
+text: More innocent people in Gaza killed by a misfired Hamas rocket. This time on an UNRWA school. Since the beginning of Swords of Iron over 7100 rockets have been launched at Israel. Approximately 610 fall short within Gaza. When they fall in Gaza there is no early warning
+Human: 1	ChatGPT: 1
+
+15 of 30
+status_id: 499
+text: Justice justice we shall pursue. We will find each and every one of the Hamas animals who did this.
+Human: 1	ChatGPT: 
+
+16 of 30
+status_id: 534
+text: Jamie Lee Curtis makes post in support of Israel with photo of Palestinian children as specified by the photographer herself.
+Human: 0	ChatGPT: 1
+
+17 of 30
+status_id: 536
+text: We. Will. Never. Lose. Hope.
+Human: 0	ChatGPT: 0
+
+18 of 30
+status_id: 555
+text: obsessed with jamie lee curtis posting a photo of palestinian children in gaza being terrorized by israel as a way to show support for israel. yall cant even be wrong right
+Human: -1	ChatGPT: -1
+
+19 of 30
+status_id: 565
+text: Ilhan Omar AOC Cori Bush Rashida Tlaib and the entire SQUAD should be expelled from Congress for their hateful rhetoric towards Israel.
+Human: 1	ChatGPT: 
+
+20 of 30
+status_id: 623
+text: 10 out of 17 Nepali Hindus abducted from Israel have been Killed by Hamas 3 escaped after getting injured
+Human: 1	ChatGPT: 1
+
+21 of 30
+status_id: 659
+text: Israels speciality Terrorizing Palestinian kids.
+Human: -1	ChatGPT: 
+
+22 of 30
+status_id: 670
+text: taeyong said fuck israel
+Human: -1	ChatGPT: 
+
+23 of 30
+status_id: 671
+text: The Hamas celebration rally is happening now in Times Square in NYC. The direct action was organized by a coalition of Palestinian nationalist leftist and socialist activists. They share a common hatred of both the U.S. Israel. Video by
+Human: 1	ChatGPT: -1
+
+24 of 30
+status_id: 709
+text: You cant send 6 billion dollars to Iran and pretend to stand with Israel. Impossible.
+Human: 0	ChatGPT: 1
+
+25 of 30
+status_id: 711
+text: Hamass surprise terrorist attack by air land and sea is Israels 911. Losing 600 Israelis is the equivalent of losing about 20000 Americans. If you murder wound rape and abduct civilians and children as Hamas has done you are not a militant.You are a terrorist.
+Human: 1	ChatGPT: 
+
+26 of 30
+status_id: 725
+text: Israel is experiencing its own 911. There is no both sides to this attack. Hamas is a terrorist group mass murdering hundreds of innocent Israelis and taking women and children hostage. The U.S. must stand ready to provide Israel with the support it needs to defend itself
+Human: 1	ChatGPT: 1
+
+27 of 30
+status_id: 734
+text: Until Republicans staff our military allow an Ambassador to Israel to be appointed and elect a Speaker no one should listen to a single thing they say about the attack on Israel.
+Human: 0	ChatGPT: 1
+
+28 of 30
+status_id: 777
+text: The recent happenings in the IsraelPalestine conflict have confirmed that the first casualty in war is truth. The IsraelPalestine conflict has been on for decades. And if you are trying to understand the origin of the whole conflict this thread is for you.
+Human: 0	ChatGPT: 0
+
+29 of 30
+status_id: 791
+text: When a murderous occupation makes peaceful resistance impossible it makes violent resistance inevitable. Israel FreePalestine EndApartheid
+Human: -1	ChatGPT: -1
+
+30 of 30
+status_id: 830
+text: Thread Day two of online misinformation about the IsraelHamas conflict This video viewed 1.3 million times falsely claims to show senior Israeli generals captured by Hamas. It actually shows the arrest of Karabakh separatist leaders by Azerbaijan's security service.
+Human: 0	ChatGPT: 
+
+> 
+> # Cleaning
+> file_names <- list.files("/cloud/project/output/")
+> gpt_labels <- rep(NA, length(file_names))
+> 
+> for (i in seq_along(file_names))
++ {
++   response <- read_rds(file.path("/cloud/project/output/", file_names[i]))
++   gpt_labels[i] <- 
++     ifelse(
++       is.null(content(response)$choices[[1]]$message$content),
++       NA, content(response)$choices[[1]]$message$content)
++   # The above ifelse() function handles the situation when the output is "content-mderated" by Microsoft!
++ }
+> d_gptLabel <- tibble(
++   id_of_tweet = str_remove(file_names, "\\.rds$") |> as.numeric(), 
++   gpt = gpt_labels)
+> d_gptLabel |> print(n = 5)
+# A tibble: 51 × 2
+  id_of_tweet gpt  
+        <dbl> <chr>
+1           1 NA   
+2          10 NA   
+3         105 -1   
+4          11 NA   
+5          12 NA   
+# ℹ 46 more rows
+# ℹ Use `print(n = ...)` to see more rows
+> 
+> d_train_merge <- d_train |> rename("human" = "sentiment") |> inner_join(d_gptLabel, by = "id_of_tweet")
+> 
+> with(d_train_merge, table(human, gpt, useNA = "ifany"))
+     gpt
+human -1 0 1 <NA>
+   -1  7 0 0    3
+   0   1 4 4    1
+   1   1 0 5    4
+   

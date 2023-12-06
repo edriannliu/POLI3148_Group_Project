@@ -1,0 +1,893 @@
+> # load packages
+> library(tidyverse)
+> library(httr)
+> library(jsonlite)
+> 
+> ## Step 1: Create instructions and a "training" set
+> instructions <- readLines("/cloud/project/data/Twitter_Sentiment_Analysis_Instructions(GPT4 rewritten)_v5.txt") |>
++   str_c(collapse = "\n") 
+> cat(instructions)
+Project Overview:
+This project aims to analyze the polarization on Twitter between pro-Israel and pro-Palestine supporters. 
+
+Dataset Description:
+- You will receive a dataset containing tweets related to the Israeli-Palestinian conflict.
+- The dataset covers the period from October 7th to October 21st, 2023.
+
+Task:
+Your task is to label the tweets in the dataset with sentiment scores.
+
+Sentiment Labelling Guidelines:
+
+General guidelines:
+- The sentiment label should reflect the stance/sentiment of the author rather than face value.
+- Keywords can sometimes be misleading as the author of a tweet may quote someone they disagree with, or use rhetorical devices such as sarcasm to convey their stance and message to their audience.
+
+1. Label “1” for Pro-Israel Tweets:
+   - Tweets that express appreciation, praise, or support for Israel, the Israeli government, Benjamin Netanyahu, or the Israel Defense Forces (IDF).
+   - Examples include phrases like "I love Israel", "Israel has the right to defend itself", or any negative comments about Palestine, Hamas, or Palestinians.
+   - Look for Israeli naming conventions, e.g., "Palestinian terrorists", "Judea and Samaria", "IDF army".
+
+2. Label “0” for Neutral Tweets:
+   - Tweets that present a balanced view, factual information, or are unrelated to the conflict.
+   - Examples include neutral statements like “Both Hamas and Israel have committed war crimes”, “All lives matter, Israeli or Palestinian”, or factual updates like casualty numbers or unrelated news about Israel.
+
+3. Label “-1” for Pro-Palestine/Hamas Tweets:
+   - Tweets that show support or sympathy for Gaza, Palestine, Hamas, or Palestinians.
+   - Examples include phrases like "Free Palestine", "It is called Palestine, not Israel", or any negative comments about Israel, the Israeli government, Benjamin Netanyahu, or the Israeli Army.
+
+Output Requirements:
+Output "1", "0", or "-1" to each tweet as per the guidelines. Do not explain.> 
+> human_label_data <- read_csv("/cloud/project/data/converged_labeled_data.csv")
+Rows: 150 Columns: 3                                                                            
+── Column specification ──────────────────────────────────────────────────────────────────────────
+Delimiter: ","
+chr (1): cleaned_text
+dbl (2): id_of_tweet, sentiment
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> 
+> # set.seed(55)
+> # d_train <- human_label_data |> 
+> # select(id_of_tweet, cleaned_text, sentiment) |>
+> # filter(!is.na(sentiment)) |>
+> # group_by(sentiment) |>
+> # sample_n(10) |> 
+> # ungroup() |>
+> # arrange(id_of_tweet)
+> 
+> d_train <- human_label_data
+> 
+> table(d_train$sentiment)
+
+-1  0  1 
+41 33 76 
+> 
+> 
+> ## Step 2: Apply ChatGPT to the "training" set
+> # GPT4 
+> api_key <- readLines("/cloud/project/data/api_info/api_key.txt")
+> api_url <- readLines("/cloud/project/data/api_info/api_url_gpt4.txt")
+> 
+> # Make API calls
+> for (i in 1:nrow(d_train)) 
++ {
++   to_annotate_id <- d_train$id_of_tweet[i]
++   to_annotate_text <- d_train$cleaned_text[i]
++   # Above I do a small string operation -- replacing line breaks by spaces
++   to_annotate_raLabel <- d_train$sentiment[i]
++   
++   response <- POST(
++     url = api_url, 
++     add_headers(`Content-Type` = "application/json", `api-key` = api_key),
++     encode = "json",
++     body = list(
++       temperature = 0, 
++       messages = list(
++         list(role = "system", content = instructions),
++         list(role = "user", content = to_annotate_text))
++     )
++   )
++   to_annotate_gptLabel <- content(response)$choices[[1]]$message$content
++   
++   write_rds(response, str_c("/cloud/project/output/human_GPT_benchmark/", to_annotate_id, ".rds")) 
++   Sys.sleep(1) # Sleep for 0.5 seconds after finishing each doc.
++   message(i, " of ", nrow(d_train))
++   # Optional below: Print results to get a "live update"
++   message("status_id: ", to_annotate_id, "\n", "text: ", to_annotate_text)
++   message("Human: ", to_annotate_raLabel, "\t", "ChatGPT: ", to_annotate_gptLabel, "\n")
++ }
+1 of 150
+status_id: 13
+text: The difference There is no way Hamas rocket can destroy a hospital Everybody knows it was done by Israel but they keep lying to themselves Israel is the real terrorist
+Human: -1	ChatGPT: 
+
+2 of 150
+status_id: 20
+text: The killing of thousands of innocent civilians including children in Gaza and the collective punishment of millions of people by cutting off their food water and electricity are crimes against humanity. Hamas' killing of innocent Israelis and taking of hostages is a crime and
+Human: 0	ChatGPT: 0
+
+3 of 150
+status_id: 21
+text: BREAKING Hamas claims it tried releasing additional two hostages yesterday but that Israel 'refused to receive them'
+Human: 0	ChatGPT: -1
+
+4 of 150
+status_id: 22
+text: Israel BOMBS civilian building in Gaza! I thought they were just fighting Hamas? Followsource
+Human: -1	ChatGPT: -1
+
+5 of 150
+status_id: 25
+text: A friend noticed the audio recording that Israeli forces claim to be Hamas operatives is recorded in stereo. Speakers on L and R channels. There is no way audio conversations are recorded in stereo anywhere. Their unit took the audio stream and fucked with it
+Human: -1	ChatGPT: -1
+
+6 of 150
+status_id: 30
+text: The alleged Hamas intercepted call that Israel realeased as evidence that Hamas BOMBED the Gaza Hospital was EDITED EFFECTS were added the call was DIVIDED on two separate channels meaning it was not intercepted. Another FAKE from Israel!
+Human: -1	ChatGPT: -1
+
+7 of 150
+status_id: 32
+text: How does a missile that is traveling thousands of miles per hour reach nearpeak altitude fall on a hospital that is just several feet away from its launch site according to the IDFs Hamas audio recordings?
+Human: -1	ChatGPT: -1
+
+8 of 150
+status_id: 33
+text: Israels Digital Spokesperson who yesterday admitted in a sinceDELETED post that Israel bombed the hospital is now sharing videos from 2022 claiming that it is VIDEO PROOF Hamas bombed their own hospital yesterday! Thank God our enemies are this stupid!
+Human: -1	ChatGPT: -1
+
+9 of 150
+status_id: 38
+text: Israel is now claiming that the Hamas missile that blew up the Gaza Hospital was fired from two separate locations. It cant be both so which one is it? you are terrible at lying! We all know you did this.
+Human: -1	ChatGPT: -1
+
+10 of 150
+status_id: 43
+text: Have you ever heard of Hamas or Hezbollah asking YouTube and Facebook to remove videos they don't like? Israel are so insecure and aware that their own behavior is criminal that they censor journalists and critics all over the world and then pretend they're a democracy. Lmao
+Human: -1	ChatGPT: -1
+
+11 of 150
+status_id: 45
+text: Britains Channel 4 News DEBUNKS ISRAELs fake claim that Hamas bombed the Gaza Baptist Hospital. Someone is going to lose their job for telling this dark truth!
+Human: -1	ChatGPT: -1
+
+12 of 150
+status_id: 48
+text: The US government has failed to equate Hamas with ISIS so they have moved on to equating Hamas with Putin. This of course will fail once more but it says something major they can only demonize Palestinian armed resistance if its tied to something that is already frowned upon.
+Human: -1	ChatGPT: -1
+
+13 of 150
+status_id: 49
+text: Hamas military wing We informed the Qataris yesterday evening that we would release the following Israeli civilian captives Nurit Yitzhak ID. 001145416 Yocheved Lifshitz ID. 005236955 for compelling humanitarian reasons and for nothing in return. Israeli gov refused
+Human: -1	ChatGPT: -1
+
+14 of 150
+status_id: 56
+text: This level of bombardment is insane by any standard! Israel is now flattening Tal AlHawa one of Gaza's affluent areas with most highrise residential buildings completely.
+Human: -1	ChatGPT: -1
+
+15 of 150
+status_id: 60
+text: Meet the former PLO spokeswoman now working at the Department of Homeland Security assessing asylum claims. Her response to Hamas terrorism Fuck Israel the government and its military. Are you ready for your downfall? And she's still employed.
+Human: 1	ChatGPT: 1
+
+16 of 150
+status_id: 61
+text: BREAKING ABC News reports that Israel's Economy Minister says hostages and civilian casualties will be secondary to the priority of destroying Hamas adding that its tunnel network will become the 'worlds biggest cemetery'.
+Human: -1	ChatGPT: 1
+
+17 of 150
+status_id: 65
+text: zionists are constantly posting about how alone they feelno one cares about israeleveryone is defending hamas but our government gives billions to israel every year and people who are posting in support of palestine are getting fired from their jobs and visited by the FBI
+Human: -1	ChatGPT: -1
+
+18 of 150
+status_id: 66
+text: False! Mistranslated quote from they're saying to we're saying. He's describing a RUMOUR not evidence These are NOT Hamas operatives unless Israel provides their full names! I reported on Hamas for a decade lived in Gaza most of my life that's NOT how they talk at all!
+Human: -1	ChatGPT: -1
+
+19 of 150
+status_id: 79
+text: That audio recording of Hamas operatives supposedly saying it was a misfired rocket from Islamic Jihad? The Israeli state faked it.
+Human: -1	ChatGPT: -1
+
+20 of 150
+status_id: 86
+text: While the world's attention is drawn to the unfolding disaster in Gaza Israeli settlers are taking advantage by entering villages and expelling and even killing Palestinian civilians. The world should be ashamed. Hamas not to blame here.
+Human: -1	ChatGPT: -1
+
+21 of 150
+status_id: 87
+text: What's important here is not just that Biden is claiming Hamas bombed the Ahli hospital but that he wants the world to know that the US is on Israel's side. The timing and tone of this message will cost the US far more than it will help Biden in elections
+Human: -1	ChatGPT: 1
+
+22 of 150
+status_id: 91
+text: Marco Rubio to introduce legislation allowing deportation and cancelling of visas of people deemed to be Hamas supporters. Given that Hamas supporter has been defined broadly enough as anyone sympathetic to Palestinians you can see where this is going
+Human: -1	ChatGPT: 1
+
+23 of 150
+status_id: 95
+text: Israel claims to be fighting Hamas but they have already Killed 10 journalists Killed 2000 people in Gaza many were women children Ordered people to evacuate to South Gaza then slaughtered them War crimes on all sides should be condemned.
+Human: -1	ChatGPT: 
+
+24 of 150
+status_id: 97
+text: want to remind yall that gaza is 50 children. the civilians are mostly children. they are committing war crimes against children. also there is no military in gaza. most of the people in gaza have nothing to do with hamas. they are manipulating you into supporting genocide.
+Human: -1	ChatGPT: 
+
+25 of 150
+status_id: 105
+text: As the Israeli military wipes entire Palestinian families off of the public record the Israeli regime is working tirelessly to equate Hamas to ISIS to justify genocide in peoples sick heads. This is the Iraq War all over again. The media has the bloodiest hands in all of this.
+Human: -1	ChatGPT: -1
+
+26 of 150
+status_id: 106
+text: How do you starve two million people and still get mainstream media to portray you as a victim? We keep hearing Hamas are this and thatwhat does that make Israel? Blockading and bombing 2 million people? Israel is a nasty bully and the media are complete garbage.
+Human: -1	ChatGPT: -1
+
+27 of 150
+status_id: 109
+text: Israeli Intelligence Suddenly Knows Exactly Where Hamas Is Its interesting how last week Israel had no idea what Hamas was up to and yet this week they know every mosque school and hospital that Hamas is hiding in. When you live under an empire of lies youll be asked to
+Human: -1	ChatGPT: -1
+
+28 of 150
+status_id: 119
+text: They're saying Hamas targets but they're showing you entire city blocks reduced to rubble where 500 Palestinian children have been killed. This is terrorism. The Israeli military's terrorism is the greatest killer of children in all of Palestine Israel combined.
+Human: -1	ChatGPT: -1
+
+29 of 150
+status_id: 122
+text: Hamas issued a statement right after Israel told Gazans to evacuate south saying it's nothing but a strategy of Israeli psychological warfare. Guess what The Palestinians who fled south were deliberately targeted in airstrikes. Hamas was right.
+Human: -1	ChatGPT: -1
+
+30 of 150
+status_id: 128
+text: Lessons from Hamas attack on Israel The fake Genocide of Muslims narrative in India will be used to justify Genocide of Hindus as language of oppressed My article today.
+Human: 0	ChatGPT: 
+
+31 of 150
+status_id: 141
+text: BREAKING US Secretary of Defense says 'Hamas is not the Palestinian people' and that he 'does not think the people should pay the price'.
+Human: 0	ChatGPT: 0
+
+32 of 150
+status_id: 146
+text: Israeli politician blows up after her colleague said All Children Are Equal. She responds There is no symmetry and the children of Gaza brought it upon themselves. I respect the pain Israel is going through after the horrors of Hamas. And I respect the other
+Human: 1	ChatGPT: 1
+
+33 of 150
+status_id: 160
+text: Yesterday I met with family members of hostages currently in Gaza. They said We can do it all. We can fight for our families held hostage by Hamas stand against occupation stand with impacted Israelis stand up for innocent Palestinians. May their humanity be an example.
+Human: 0	ChatGPT: 0
+
+34 of 150
+status_id: 173
+text: Why don't Palestinians condemn Hamas? Serious answer 1 Most despise this litmus test to qualify as human 2 Most think it'll make no difference Israel will exploit any condemnations to say Palestinians agree that Hamas should be wiped out which means wiping out Gaza..
+Human: -1	ChatGPT: -1
+
+35 of 150
+status_id: 182
+text: New A handful of influential but unreliable breaking news accounts many promoted by Elon Musk are dominating the flow of news on Twitter around the IsraelHamas war and easily outpacing established mainstream news outlets according to new research.
+Human: 0	ChatGPT: 0
+
+36 of 150
+status_id: 184
+text: Channel 4 News in the UK suggesting based on their reporting that the Israeli audio of the alleged Hamas guys talking about the attack is a fake. So many claims and counterclaims in this conflict.
+Human: 0	ChatGPT: 0
+
+37 of 150
+status_id: 185
+text: BREAKING Switzerland launches investigation into Hamas financing
+Human: 0	ChatGPT: 0
+
+38 of 150
+status_id: 190
+text: JUST IN Starbucks Employees Union Expresses 'Support for Palestine' Following Recent Hamas Terrorist Attacks.. Starbucks Workers United representing around 9000 Starbucks baristas faced backlash after expressing solidarity with Palestine following a recent Hamas attack on
+Human: 0	ChatGPT: -1
+
+39 of 150
+status_id: 202
+text: NEW The scene at Columbia University in New York City where the school has been overrun by proPalestine protesters. Just a few days ago Hamas terrorists murdered innocent Israeli men women and children. In response to the barbaric attacks college campuses have been overrun
+Human: 1	ChatGPT: 
+
+40 of 150
+status_id: 203
+text: At a Palestine rally at radical left students threaten a man who they perceive to be an Israel supporter. Campus police lead the man away apparently for his own safety. The leftist rally was promoted with a flyer featuring a Hamas terrorist.
+Human: 1	ChatGPT: 
+
+41 of 150
+status_id: 204
+text: How did Hamas get an M4 with an ACOG optic?
+Human: 0	ChatGPT: 1
+
+42 of 150
+status_id: 208
+text: Israeli forces using a bulldozer to destroy a pizza restaurant in the West Bank that had used its social media account to mock an elderly Holocaust survivor taken hostage by Hamas
+Human: 0	ChatGPT: 
+
+43 of 150
+status_id: 220
+text: To all of those people who spent days claiming Biden gave Iran 6 billion and that money ended up in the hands of Hamas terrorists US Secretary of State Antony Blinken just factchecked that ridiculous claim. He said With regard to the 6 billion. First again its always
+Human: 0	ChatGPT: 0
+
+44 of 150
+status_id: 227
+text: BREAKING Texas Republican Senator Ted Cruz is humiliated after he gets fact checked after trying for attack President Biden over Israel and Hamas fires off an angry responseand then his response ALSO got factchecked. It all started when Cruz falsely posted on XTwitter
+Human: 0	ChatGPT: 0
+
+45 of 150
+status_id: 228
+text: Foreign students academics and workers who commit antiSemitic acts or praise Hamas will be expelled from the UK according to new plans being drawn up by the Home Office.
+Human: 1	ChatGPT: 1
+
+46 of 150
+status_id: 229
+text: Hamas was funded armed trained in part by Russia. By Putin. If we don't act this will start happening all over the world. The solution has been staring us in the face the elusive obvious Arm Ukraine. Kremlin regime will collapse. Putin will be gone.
+Human: 0	ChatGPT: 
+
+47 of 150
+status_id: 232
+text: BREAKING Hamas Sends a Video Message to Israeli Forces Stating This is what awaits you when you enter Gaza. Source Hamas Official Website
+Human: 0	ChatGPT: 0
+
+48 of 150
+status_id: 235
+text: WSJ reports Hamas received millions of dollars in cryptocurrency from Russia in the lead up to the attack on Israel.
+Human: 0	ChatGPT: 1
+
+49 of 150
+status_id: 236
+text: BREAKING The White House torches Trumps attack on Israel and praise of Hezbollah and Hamas calling it dangerous and unhinged. Full story and statement here
+Human: 1	ChatGPT: 1
+
+50 of 150
+status_id: 245
+text: Last night on Fox Alan Dershowitz suggested the people of Gaza avoid Israeli bombs dropping on Hamas by taking refuge with the UN UNRWA in Gaza.
+Human: -1	ChatGPT: 1
+
+51 of 150
+status_id: 252
+text: Video 1 Two female Hamas terrorists waving guns. Video 2 The same women pretending to be victims of a bombing while dressed as civilians for the cameras.
+Human: 1	ChatGPT: 
+
+52 of 150
+status_id: 257
+text: Islam Conquers the United Kingdom During a rally for Hamas outside Downing Street in London Islamic soldiers stopped for Maghrib prayer... Does the naive West even realize that the Maghrib prayer contains Surah AlFatiha which is one of the most antiChristian and
+Human: 1	ChatGPT: 
+
+53 of 150
+status_id: 260
+text: Damage caused by a Hamas rocket compared to damage caused by an Israeli airstrike. Now which one do you think hit the hospital?
+Human: -1	ChatGPT: -1
+
+54 of 150
+status_id: 263
+text: Son of Hamas leader Mosab Hassan Yousef denounced Hamas and converted to Christianity after witnessing their savagery They don't care for the Palestinian people. They don't regard human life. I saw their brutality firsthand....If they succeed in destroying Israel and
+Human: 1	ChatGPT: 
+
+55 of 150
+status_id: 268
+text: London School of Economics a young woman is filmed tearing down posters of missing Israeli children kidnapped by Hamas terrorists into Gaza. When asked why she's destroying them she answers there is no proof women were raped.
+Human: 1	ChatGPT: 
+
+56 of 150
+status_id: 279
+text: Dear Palestinians While the leaders of Hamas are living luxurious lives enjoying good lives they ask you to sacrifice yourselves and your children. Hamas doesn't care for the Palestinians. Hamas is the enemy of the Palestinian people.
+Human: 1	ChatGPT: 1
+
+57 of 150
+status_id: 283
+text: Students atgiggle and laugh as they give the middle finger to a screen showing the babies that Hamas terrorists took hostage
+Human: 1	ChatGPT: 1
+
+58 of 150
+status_id: 312
+text: Conquered Sweden... Hamas soldiers march through the streets of the Swedish city of Helsingborg tonight shouting the Islamic battle cry Allahu Akbar... ...Allah is greater or Allah is greatest a declaration of supremacism and superiority and of victory over the
+Human: 1	ChatGPT: 
+
+59 of 150
+status_id: 315
+text: We all supported BLM... A woman was caught tearing down photos in central London of missing civilians kidnapped or killed by Hamas.
+Human: 1	ChatGPT: 1
+
+60 of 150
+status_id: 321
+text: In a destroyed home in a community attacked by Hamas terrorists a soldier sings the Israeli anthem. Hamas will not ruin our spirits.
+Human: 1	ChatGPT: 1
+
+61 of 150
+status_id: 325
+text: NEW Rep. Rashida Tlaib starts 'crying' in front of a crowd after accusing Israel of bombing the hospital in Gaza. The outburst from Tlaib was much different than her 'response' when she was asked by a reporter about the people who Hamas brutally killed in Israel. Instead of
+Human: 1	ChatGPT: -1
+
+62 of 150
+status_id: 328
+text: Israel has the ability to kill everyone in Gaza but hasn't because they don't want to kill civilians Hamas wants to kill everyone in Israel but hasn't because they don't have the ability to kill as many civilians as they want to See the difference?
+Human: 1	ChatGPT: 1
+
+63 of 150
+status_id: 346
+text: Warning Intelligence sources tell us that Hamas is working on a fabricated video to hide the misfiring of an Islamic Jihad rocket on a hospital in Gaza and falsely accuse Israel of doing so. Remember that this is a terrorist organization the same organization that runs the
+Human: 1	ChatGPT: 1
+
+64 of 150
+status_id: 349
+text: Over 100 HamasISIS targets were eliminated last night including numerous HamasISIS terrorists.
+Human: 1	ChatGPT: 1
+
+65 of 150
+status_id: 353
+text: A Muslim hero of Israel This is Ashraf a Bedouin IDF commander who fought against Hamas terrorists who tried to capture his base. It happened to be visitors day on base so he and his soldiers saved countless lives. Here they are thanking him.
+Human: 1	ChatGPT: 1
+
+66 of 150
+status_id: 357
+text: Today on Oct 18th 2023 we witnessed the most horrific tragic event in our nations history An insurrection of the Capitol. Hamas tried to overthrow our government.
+Human: 1	ChatGPT: 1
+
+67 of 150
+status_id: 358
+text: Open your eyes and see the true face of Hamas. Watch IDF Spokesperson RAdm. Daniel Hagari talk about the truth.
+Human: 1	ChatGPT: 1
+
+68 of 150
+status_id: 381
+text: Not a word condemning Islamic Jihad for causing the hospital explosion in Gaza and killing hundreds of Palestinian civilians. Not a word from the UN. Not a word from Israels usual critics who rushed to judgement with a blood libel. Not a word from Hamas no surprises.
+Human: 1	ChatGPT: 1
+
+69 of 150
+status_id: 382
+text: Raz is 5. Aviv is 2. Both little girls are being held captive by Hamas in Gaza. Raz and Aviv have been away from home two weeks now. Enough is enough. Add your voice. Demand their return. BringThemBack
+Human: 1	ChatGPT: 1
+
+70 of 150
+status_id: 392
+text: Young Israeli girls screams please help me but is quickly shot dead by Hamas terrorists. Her death is not visible in the video
+Human: 1	ChatGPT: 
+
+71 of 150
+status_id: 396
+text: No U.S. tax dollars to the Gaza Strip. Hamas is holding American hostages and Biden wants to fund them? I challenge every Republican running to step up to the plate and oppose Bidens 100 million gift to Hamas.
+Human: 1	ChatGPT: 1
+
+72 of 150
+status_id: 397
+text: We cannot let petty partisan angry politics get in the way of our responsibilities as a nation. We cannotand will notlet terrorists like Hamas and tyrants like Putin win. I refuse to let that happen.
+Human: 1	ChatGPT: 1
+
+73 of 150
+status_id: 412
+text: Miami dentist 31 FIRED just hours after being caught tearing down posts of Israelis kidnapped or killed by Hamas.. 'Instagram model' Xave Ramoul and Ahmed Elkoussa a 31yearold dentist were caught on camera ripping down posters of Israeli hostages in the Brickell
+Human: 1	ChatGPT: 
+
+74 of 150
+status_id: 414
+text: There are 200 people as young as 9 months and as old as 95 years being held hostage by Hamas terrorists. Their families have endured two tortuous weeks not knowing if their loved ones are among the living or among the dead. Raise your voice. Share this message. Tell their
+Human: 1	ChatGPT: 1
+
+75 of 150
+status_id: 415
+text: 12yearold Ariel Zohar is the only member of his family to survive the Hamas slaughter. The anguished boy buried his parents and two sisters earlier this week. Ariel was only spared because he had gone out on an earlymorning run.
+Human: 1	ChatGPT: 
+
+76 of 150
+status_id: 417
+text: BIG BREAKING NEWS Germany's interior minister Nancy Faeser announces that those backing Hamas will be deported from the country She asks citizens to inform authorities if they see any ongoing propaganda supporting Hamas. Germany to launch MASSIVE crackdown She also
+Human: 1	ChatGPT: 1
+
+77 of 150
+status_id: 418
+text: Hamas releases 2 out of 210 civilian hostages. International media rn Give them the Nobel Peace Prize!
+Human: 1	ChatGPT: 1
+
+78 of 150
+status_id: 420
+text: BBC Israel is claiming the alleged killing of 1300 Zionists by Palestinian freedom fighters is a 'terrorist attack'. BBC Hamas authorities have confirmed with us that Israel beyond a shadow of a doubt unequivocally and incontrovertibly did in fact shoot nuns with laser
+Human: 0	ChatGPT: -1
+
+79 of 150
+status_id: 430
+text: The UN said it DID NOT check the trucks that entered the Gaza Strip. No official checked it. No one. How do we know it's humanitarian aid and not more rockets for Hamas?
+Human: 1	ChatGPT: 1
+
+80 of 150
+status_id: 433
+text: Shlomo Ron Shlomo gave his life to save his family. When Hamas invaded Kibbutz Nahal Oz the 85yearold sent his wife daughters and grandson into the saferoom. He believed that if the terrorists would see the lonely old man alone they'd murder him and move on sparring
+Human: 1	ChatGPT: 
+
+81 of 150
+status_id: 436
+text: More innocent people in Gaza killed by a misfired Hamas rocket. This time on an UNRWA school. Since the beginning of Swords of Iron over 7100 rockets have been launched at Israel. Approximately 610 fall short within Gaza. When they fall in Gaza there is no early warning
+Human: 1	ChatGPT: 1
+
+82 of 150
+status_id: 444
+text: so weird that this russian war crime of bombing a ukrainian hospital with a 500kg bomb did not get more outrage and media coverage than the Hamas failed rocket on the Baptist hospital in gaza ...
+Human: 0	ChatGPT: -1
+
+83 of 150
+status_id: 450
+text: Outside the Tel Aviv museum a Shabbat table is set for 203 hostages kidnapped by Hamas to Gaza. Please watch the full length of the video and try to imagine the whole world behind each one of those empty seats.
+Human: 1	ChatGPT: 1
+
+84 of 150
+status_id: 451
+text: Meet Michal Elon. The mother of 10 works as a pediatric oncology nurse. On Oct 7 she and her family were at Zikim army base to be with soldiers during the Jewish holiday of Sukkot. Early in the morning sirens sounded and with horror Michal and her husband realized that Hamas
+Human: 1	ChatGPT: 1
+
+85 of 150
+status_id: 458
+text: Am feeling pure rage at what is being allowed to happen on the streets of London. 100000 people marching because they think Hamas didn't go far enough. 100000 people who want rid of me and my fellow Jews. And don't give me that bullshit about a peaceful march for Palestine.
+Human: 1	ChatGPT: 1
+
+86 of 150
+status_id: 461
+text: Noyas body was found along with her grandmother. Hamas terrorists slaughtered Noya in front of her grandmother and murdered her grandma too. You can imagine why it took so long to identify them I was so hoping for a different ending to this tragic story.
+Human: 1	ChatGPT: 
+
+87 of 150
+status_id: 465
+text: Some news anchors have been parroting a preposterous line handfed to them by Hamas terrorists that the release of the two hostages was humanitarian. It wasnt. It was strategic. Thats why they released only Americans. No babies were released. It was intended to delay Israel
+Human: 1	ChatGPT: 1
+
+88 of 150
+status_id: 469
+text: I think we're done taking dictates from organizations around the world what we should or shouldn't do in Gaza. We're going to dismantle Hamas and get our people home and I hope Gazan civilians will evacuate the North. As told on
+Human: 1	ChatGPT: 1
+
+89 of 150
+status_id: 486
+text: The Flotilla 13 elite unit was deployed to the area surrounding the Gaza security fence in a joint effort to regain control of the Sufa military post on October 7th. The soldiers rescued around 250 hostages alive. 60 Hamas terrorists were neutralized and 26 were
+Human: 1	ChatGPT: 1
+
+90 of 150
+status_id: 488
+text: After seeing BLM Ivy league universities and blue cities fill with tens of thousands of people openly embracing supporting Hamas after they committed a barbaric terrorist attack on Israel I have 1 question How are 70 of Jews in America still voting Democrat? Insane
+Human: 1	ChatGPT: 1
+
+91 of 150
+status_id: 492
+text: Hamas murders Jewish babies in their beds. Media It must be the occupation. Hamas digs up water pipes and uses them for rockets. Media Water shortages are Israel's fault. Hamas stations civilians in direct line of fire. Media Why won't Israel protect civilians?
+Human: 1	ChatGPT: 
+
+92 of 150
+status_id: 498
+text: You can see their injuries hear their cries and feel them trembling from fear as these children are held hostage in their own homes by Hamas terrorists and their parents lie there dead in the next room. These are the terrorists that we are going to defeat.
+Human: 1	ChatGPT: 
+
+93 of 150
+status_id: 499
+text: Justice justice we shall pursue. We will find each and every one of the Hamas animals who did this.
+Human: 1	ChatGPT: 
+
+94 of 150
+status_id: 515
+text: Hamas apparently knew how to get around Israels Iron Dome defenses. They probably learned this from Iran. Iran almost certainly got the information from Russia. And who gave it to Russia? Sure looks like it was Donald Trump at the request of Putin
+Human: 0	ChatGPT: 1
+
+95 of 150
+status_id: 519
+text: Let me say this as clearly as I can. This is not a moment for any party hostile to Israel to exploit these attacks to seek advantage. My Administrations support for Israels security is rock solid and unwavering.
+Human: 1	ChatGPT: 1
+
+96 of 150
+status_id: 522
+text: This isnt hard to follow Trump gave military intel to the Russians. The Russians who are extremely close allies with Iran gave it to Iran. Iran gave that information to Hamas. Hamas used it to attack Israel. This is why it intel security matters. Republicans DO NOT CARE.
+Human: 0	ChatGPT: 1
+
+97 of 150
+status_id: 526
+text: Israel is the occupier. Palestine is the occupied. No ifs ands or buts.
+Human: -1	ChatGPT: -1
+
+98 of 150
+status_id: 534
+text: Jamie Lee Curtis makes post in support of Israel with photo of Palestinian children as specified by the photographer herself.
+Human: 0	ChatGPT: 1
+
+99 of 150
+status_id: 536
+text: We. Will. Never. Lose. Hope.
+Human: 0	ChatGPT: 0
+
+100 of 150
+status_id: 542
+text: She wasn't murdered raped or abused. Footage showed her moments later safe in Gaza. She was taken captive as a bargaining chip to free 1000s Palestinians whom Israel detains without charges evidence or trial aka administrative detention. Both violate int. law!
+Human: -1	ChatGPT: 
+
+101 of 150
+status_id: 549
+text: Breaking News Israel Spokesperson of Izzuddin AlQassam Brigades Abu Obaidah We thank the Islamic Republic of Iran who provided us with weapons money and other equipment! He gave us missiles to destroy Zionist fortresses and helped us with standard antitank missiles!
+Human: 0	ChatGPT: 
+
+102 of 150
+status_id: 551
+text: Israel Israelunderattack IndiaStandsWithIsrael IsraelAtWar
+Human: 1	ChatGPT: 1
+
+103 of 150
+status_id: 555
+text: obsessed with jamie lee curtis posting a photo of palestinian children in gaza being terrorized by israel as a way to show support for israel. yall cant even be wrong right
+Human: -1	ChatGPT: -1
+
+104 of 150
+status_id: 560
+text: Thousands of Germans gather in Berlin to show solidarity with Israel. They sang the national anthem of Israel. This makes me emotional. THANK YOU.Israel
+Human: 1	ChatGPT: 1
+
+105 of 150
+status_id: 565
+text: Ilhan Omar AOC Cori Bush Rashida Tlaib and the entire SQUAD should be expelled from Congress for their hateful rhetoric towards Israel.
+Human: 1	ChatGPT: 
+
+106 of 150
+status_id: 571
+text: Hamas started a war against Israel with the worst massacre of innocent civilians in Israels history. We paid a heavy price but we will restore security to the people of Israel. Full statement from
+Human: 1	ChatGPT: 
+
+107 of 150
+status_id: 592
+text: My prediction is that in this attack on Israel you will find weapons that were not only surrendered in Afghanistan but also weapons that were given to Ukraine involved in the slaughter. And no one not even those most intelligent pundit of pundits will be able to piece
+Human: 1	ChatGPT: 1
+
+108 of 150
+status_id: 599
+text: The road in Re'im Israel. A music festival was held there. Hamas terrorists encircled it and opened fire on civilians. Media report that Hamas shot people loaded wounded on pickup trucks and took them to Gaza. They killed heavily wounded and chased after those who tried to run
+Human: 1	ChatGPT: 
+
+109 of 150
+status_id: 614
+text: . onjust asked the key question behind US moral relativism Why is the US supporting Ukraine fighting against Russias occupationyet supports Israels occupationethnic subjugation of Palestinians for the last 57 years?
+Human: -1	ChatGPT: -1
+
+110 of 150
+status_id: 623
+text: 10 out of 17 Nepali Hindus abducted from Israel have been Killed by Hamas 3 escaped after getting injured
+Human: 1	ChatGPT: 1
+
+111 of 150
+status_id: 635
+text: Israel According to Al Jazeera Hamas is attempting to warn the US that Moving the American aircraft carrier does not scare us and the Biden administration must realize the consequences of this step. This should be the U.S. response Youre basically dead men walking. There
+Human: 1	ChatGPT: 1
+
+112 of 150
+status_id: 636
+text: BREAKING Israel confirms that the bodies of 260 civilians were found at the site of the music festival near the Gaza border fence. The authorities announce that search and rescue operation is over.
+Human: 0	ChatGPT: 0
+
+113 of 150
+status_id: 637
+text: TEL AVIV Israeli people donate food and goods for the IDF soldiers deployed. Am Yisrael Chai.Israel
+Human: 1	ChatGPT: 1
+
+114 of 150
+status_id: 658
+text: I would bet all the coffee I will ever be able to consume the rest of my life that Hamas was able to carry out such a well planned attack on Israel because of information Donald J Trump sharedsold to others. By the way Americans are confirmed among the dead in Israel.
+Human: 0	ChatGPT: 1
+
+115 of 150
+status_id: 659
+text: Israels speciality Terrorizing Palestinian kids.
+Human: -1	ChatGPT: -1
+
+116 of 150
+status_id: 667
+text: Full support to Israel from India
+Human: 1	ChatGPT: 1
+
+117 of 150
+status_id: 670
+text: taeyong said fuck israel
+Human: -1	ChatGPT: 
+
+118 of 150
+status_id: 671
+text: The Hamas celebration rally is happening now in Times Square in NYC. The direct action was organized by a coalition of Palestinian nationalist leftist and socialist activists. They share a common hatred of both the U.S. Israel. Video by
+Human: 1	ChatGPT: -1
+
+119 of 150
+status_id: 685
+text: JUST IN Its now being reported that Officers from Irans Islamic Revolutionary Guard Corps have been working with HAMAS since August to train terrorists for their complex attack on Israel which involved assaults from the air land and sea. Today the President of Iran
+Human: 1	ChatGPT: 1
+
+120 of 150
+status_id: 689
+text: Celebrations are going on in Iran. No they dont have any festival today nor theyve won any olympics medal theyre celebrating the brutal kiIIing of innocent people of Israel. This isnt about territory but religion..
+Human: 1	ChatGPT: 1
+
+121 of 150
+status_id: 690
+text: We are doing our best to keep all of you updated Just know we are doing the best we can. Our hearts are broken but we are strong.
+Human: 0	ChatGPT: 0
+
+122 of 150
+status_id: 692
+text: The Biden administration has been enriching Iran from Day Onelifting restrictions and stopped enforcing sanctions. This atrocity against Israel wasnt just predictableit was predicted.
+Human: 1	ChatGPT: 1
+
+123 of 150
+status_id: 695
+text: That's from algeria. Neither from Israel nor Palastine.
+Human: 0	ChatGPT: 0
+
+124 of 150
+status_id: 707
+text: IsraelPalestine isn't a complex conflict. Was Vietnam complex? Was independence of African states complex? Palestine is a colonized nation. Freedom means full decolonization full stop.
+Human: -1	ChatGPT: -1
+
+125 of 150
+status_id: 709
+text: You cant send 6 billion dollars to Iran and pretend to stand with Israel. Impossible.
+Human: 0	ChatGPT: 1
+
+126 of 150
+status_id: 711
+text: Hamass surprise terrorist attack by air land and sea is Israels 911. Losing 600 Israelis is the equivalent of losing about 20000 Americans. If you murder wound rape and abduct civilians and children as Hamas has done you are not a militant.You are a terrorist.
+Human: 1	ChatGPT: 
+
+127 of 150
+status_id: 714
+text: Israel's battle is your battle.
+Human: 1	ChatGPT: 1
+
+128 of 150
+status_id: 716
+text: Allahu Akbar! Just now outside of Toronto Hamas supporters are out celebrating the recent terror attacks in Israel that have left 300 dead.
+Human: 1	ChatGPT: 
+
+129 of 150
+status_id: 718
+text: Republicans Are holding up the nominee for ambassador to Israel Are holding up over 300 military officials. Dont even have a Speaker meaning the House is stalled They are causing chaos.
+Human: 0	ChatGPT: 0
+
+130 of 150
+status_id: 724
+text: BIG US weapons left behind in Afghanistan used to attack Israel. A highranking Israel Defense Forces IDF commander said US weapons left in Afghanistan by the Biden administration were found in the hands of Palestinian groups active in the Gaza Strip
+Human: 1	ChatGPT: 1
+
+131 of 150
+status_id: 725
+text: Israel is experiencing its own 911. There is no both sides to this attack. Hamas is a terrorist group mass murdering hundreds of innocent Israelis and taking women and children hostage. The U.S. must stand ready to provide Israel with the support it needs to defend itself
+Human: 1	ChatGPT: 1
+
+132 of 150
+status_id: 729
+text: Extraordinary footage of Israel bombing densely populated urban areas in Northern Gaza earlier today.
+Human: -1	ChatGPT: -1
+
+133 of 150
+status_id: 734
+text: Until Republicans staff our military allow an Ambassador to Israel to be appointed and elect a Speaker no one should listen to a single thing they say about the attack on Israel.
+Human: 0	ChatGPT: 1
+
+134 of 150
+status_id: 740
+text: HUGE Big blow to Al Jazeera. Israel demolishes AlWatan Tower in Gaza. The building was a hub for several international media outlets including Al Jazeera Associated Press other Pro Palestine media Al Aklauq tower also demolished. Israel is now unstoppable. Netanyahu
+Human: -1	ChatGPT: 1
+
+135 of 150
+status_id: 742
+text: As false information about the rapidly changing war between Gaza Strip militants and Israel proliferated on the social media platform X over the weekend owner Elon Musk personally recommended that users follow accounts notorious for promoting lies.
+Human: 0	ChatGPT: 0
+
+136 of 150
+status_id: 744
+text: The full scale of the brutality of the Hamas terror attack leaves us breathless. Defenseless people brutally murdered in cold blood on the streets. We stand strong with Israel and its people. Today the EU and Israeli flags fly side by side.
+Human: 1	ChatGPT: 1
+
+137 of 150
+status_id: 746
+text: A new axis of evil has arisen RussiaIranNorth Korea. Their latest project is Hamas's attack on Israel. The best Israel had better finally choose side.
+Human: 1	ChatGPT: 1
+
+138 of 150
+status_id: 749
+text: Trump exposed the nuclear secrets of one of the 9 nuclear nations It was thought to be Israel Today Israel was attacked Trumps sugar daddies the Saudis blamed Israel for being attacked sided with Hamas What are the chances Trump gave Israeli intel to his Saudi masters?!
+Human: 1	ChatGPT: -1
+
+139 of 150
+status_id: 758
+text: Imp Read! No doubt that Palestinian Terr0r Attack on Israel was an Intelligence Failure in fact biggest Israeli intelligence failure in 50 yrs. But think why it happened! It happened only after Opposition Parties in Israel got a chance to overthrow Nationalist Ji
+Human: 1	ChatGPT: 1
+
+140 of 150
+status_id: 763
+text: It cheapens the concept of antisemitisma real global cursefor defenders of the Israeli government to pretend that it is somehow antisemitic to hold Israel to the same standards of international humanitarian law as we use to assess Hamas's conduct. A war crime is a war crime.
+Human: -1	ChatGPT: -1
+
+141 of 150
+status_id: 765
+text: PSA If you gave speeches at Nazi rallies or blamed California forest fires on a Jewish space laser you can kindly stop using the atrocities taking place in Israel as an opportunity to score politcal points against the American government you tried and failed to overthrow.
+Human: 1	ChatGPT: -1
+
+142 of 150
+status_id: 775
+text: The Israeli Embassy in Greece has managed to Charter around 20 Flights from Athens to Tel Aviv which will take roughly 5000 Israeli Reservists currently in Greece who have been called to Active Military Service back to Israel to assist with the ongoing War in Gaza.
+Human: 1	ChatGPT: 1
+
+143 of 150
+status_id: 777
+text: The recent happenings in the IsraelPalestine conflict have confirmed that the first casualty in war is truth. The IsraelPalestine conflict has been on for decades. And if you are trying to understand the origin of the whole conflict this thread is for you.
+Human: 0	ChatGPT: 0
+
+144 of 150
+status_id: 783
+text: Israel when their civilisation is under siege. In India our opposition leaders aide that civilisational attack beg for it cheer it
+Human: 1	ChatGPT: 1
+
+145 of 150
+status_id: 791
+text: When a murderous occupation makes peaceful resistance impossible it makes violent resistance inevitable. Israel FreePalestine EndApartheid
+Human: -1	ChatGPT: -1
+
+146 of 150
+status_id: 792
+text: The DSA held a hate rally chanting from the River to the Sea which is code for wiping Israel from the face of the earth. Let that sink in.The DSA is calling for the destruction of the Jewish State amid the largest singleday massacre of Jews since the Holocaust.When
+Human: 1	ChatGPT: 
+
+147 of 150
+status_id: 804
+text: The U.S. Air Force will reportedly be Deploying an additional 2025 F15 and F35 Multirole Fighter Jets to the Middle East over the coming days with the Objective of this Deployment being to prevent the War in Israel from spreading into the remainder of the Middle East while
+Human: 1	ChatGPT: 0
+
+148 of 150
+status_id: 819
+text: The fact that Israel can just cut off electricity to Gaza at any moment is a good primer about the conditions in Palestine that led to the current resistance.
+Human: -1	ChatGPT: -1
+
+149 of 150
+status_id: 829
+text: For too many Republicans their hatred of Democrats is their only organizing prism. Even on a day like today all they can do is attack. Senator Scotts social media is mostly attacks on Biden instead of support for Israel. There are times for politics. There are times for unity.
+Human: 1	ChatGPT: 1
+
+150 of 150
+status_id: 830
+text: Thread Day two of online misinformation about the IsraelHamas conflict This video viewed 1.3 million times falsely claims to show senior Israeli generals captured by Hamas. It actually shows the arrest of Karabakh separatist leaders by Azerbaijan's security service.
+Human: 0	ChatGPT: 0
+
+> 
+> # Cleaning
+> file_names <- list.files("/cloud/project/output/human_GPT_benchmark/")
+> gpt_labels <- rep(NA, length(file_names))
+> 
+> for (i in seq_along(file_names))
++ {
++   response <- read_rds(file.path("/cloud/project/output/human_GPT_benchmark/", file_names[i]))
++   gpt_labels[i] <- 
++     ifelse(
++       is.null(content(response)$choices[[1]]$message$content),
++       NA, content(response)$choices[[1]]$message$content)
++   # The above ifelse() function handles the situation when the output is "content-moderated" by Microsoft!
++ }
+> d_gptLabel <- tibble(
++   id_of_tweet = str_remove(file_names, "\\.rds$") |> as.numeric(), 
++   gpt = gpt_labels)
+> d_gptLabel |> print(n = 5)
+# A tibble: 150 × 2
+  id_of_tweet gpt  
+        <dbl> <chr>
+1         105 -1   
+2         106 -1   
+3         109 -1   
+4         119 -1   
+5         122 -1   
+# ℹ 145 more rows
+# ℹ Use `print(n = ...)` to see more rows
+> 
+> d_train_merge <- d_train |> rename("human" = "sentiment") |> inner_join(d_gptLabel, by = "id_of_tweet")
+> 
+> with(d_train_merge, table(human, gpt, useNA = "ifany"))
+     gpt
+human -1  0  1 <NA>
+   -1 31  0  5    5
+   0   4 17  8    4
+   1   4  1 50   21
+> d_train <- human_label_data
+> table(d_train$sentiment)
+
+-1  0  1 
+41 33 76 
+Session r
