@@ -1,5 +1,5 @@
 # Title: Data Cleaning
-# Contributor: Edrian, Jonny, Aurora
+# Contributor: Edrian, Jonny
 # Date: 2023-11-30
 # Description:
 # The following code visualize the data
