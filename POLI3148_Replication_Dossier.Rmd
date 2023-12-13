@@ -1,0 +1,1019 @@
+---
+title: "POLI3148 Replication Dossier"
+author: "Aurora Beqiri, Edrian Liu, Jonathan Standing, Luc Mekouar"
+date: "2023-12-12"
+output:
+  html_document:
+    df_print: paged
+---
+
+# Step 1.1 - Data Pre-Prosessing 
+## The following code cleans and combines 14 datasets for the five keywords
+### Load libraries ----
+```{r}
+library(tidyverse) # data wrangling
+library(textcat) # filtering language
+```
+
+### Create Functions ----
+
+### 1. Create function for filtering rows for twitter, 
+### leaving only day (no year, month, and time) of the tweet
+
+```{r}
+filter_twitter <- function(df) {
+  twitter_df <- df[df$platform == "twitter",
+                   c("text", "created_at", "total_interactions_count")]
+  twitter_df$created_at <- substr(twitter_df$created_at,9,10)
+  return(twitter_df)
+}
+```
+
+### 2. Clean text (remove symbols, links, usernames, etc)
+
+```{r}
+clean = function(text) {
+  text = iconv(text, "latin1", "ASCII", sub="") #change encoding
+  text = gsub("(@)\\w+", "", text) #remove numbers, alphabets after "@" (username)
+  text = gsub("(http|https)://.*", "", text) # remove links
+  text = gsub("[ \t]{2,}", "", text) #remove two blank spaces and tab
+  text = gsub("\\n"," ",text) # remove newline
+  text = gsub("\\s+"," ",text) # remove blank spaces
+  text = gsub("^\\s+|\\s+$","",text) # remove blank spaces
+  text = gsub("&.*;","",text) # remove special symbols and html
+  text = gsub("[^a-zA-Z0-9?!. ']","",text) # remove emojis
+}
+```
+
+## Israel ----
+
+### Load data
+```{r}
+file_names <- c("Israel_0607.csv",
+                "Israel_0708.csv",
+                "Israel_0809.csv",
+                "Israel_0910.csv",
+                "Israel_1011.csv",
+                "Israel_1112.csv",
+                "Israel_1213.csv",
+                "Israel_1314.csv",
+                "Israel_1415.csv",
+                "Israel_1516.csv",
+                "Israel_1617.csv",
+                "Israel_1718.csv",
+                "Israel_1819.csv",
+                "Israel_1920.csv",
+                "Israel_2021.csv",
+                "Israel_2122.csv")
+
+df_list <- list() # create empty list to store data frame
+
+for (file in file_names) {
+  file_path <- paste0("data/israel/", file)
+  df <- read.csv(file_path)
+  df_list[[file]] <- df
+}
+
+filtered_list <- lapply(df_list, filter_twitter)
+```
+
+### Combine datasets into one big dataset
+
+```{r}
+israel_combined <- bind_rows(filtered_list)
+```
+
+### Arrange by date, remove Oct 06 and Oct 22
+
+```{r}
+israel_combined <- israel_combined |>
+  arrange(created_at) |>
+  filter(!(created_at %in% c("06", "22")))
+```
+
+### Filter English language (include "scots" english)
+
+```{r}
+israel_combined$language <- textcat(israel_combined$text)
+israel_combined_eng <- israel_combined |>
+  filter(language %in% c("english", "scots"))
+```
+
+### Delete replicated rows
+
+```{r}
+israel_combined_clean <- israel_combined_eng |>
+  mutate(clean(israel_combined_eng$text)) |>
+  rename("cleaned_text" = "clean(israel_combined_eng$text)") |>
+  select(cleaned_text, created_at, total_interactions_count) |>
+  distinct(cleaned_text, .keep_all = TRUE)
+```
+
+### Count tweets per day and plot changes
+
+```{r}
+israel_count <- israel_combined_clean |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
+  group_by(created_at) |>
+  count()
+```
+
+### Save combined dataset, remove unneeded dataframes
+
+```{r}
+write.csv(israel_combined_clean,
+          file = "output/israel_clean.csv",
+          row.names = FALSE)
+write.csv(israel_count,
+          file = "output/israel_count.csv",
+          row.names = FALSE)
+
+rm(df, df_list, filtered_list, file, file_names, file_path)
+
+```
+
+## Hamas ----
+
+### Load data
+```{r}
+file_names <- c("Hamas_0607.csv",
+                "Hamas_0708.csv",
+                "Hamas_0809.csv",
+                "Hamas_0910.csv",
+                "Hamas_1011.csv",
+                "Hamas_1112.csv",
+                "Hamas_1213.csv",
+                "Hamas_1314.csv",
+                "Hamas_1415.csv",
+                "Hamas_1516.csv",
+                "Hamas_1617.csv",
+                "Hamas_1718.csv",
+                "Hamas_1819.csv",
+                "Hamas_1920.csv",
+                "Hamas_2021.csv",
+                "Hamas_2122.csv")
+
+df_list <- list() # create empty list to store data frame
+
+for (file in file_names) {
+  file_path <- paste0("data/Hamas/", file)
+  df <- read.csv(file_path)
+  df_list[[file]] <- df
+}
+
+filtered_list <- lapply(df_list, filter_twitter)
+```
+
+### Combine datasets into one big dataset
+
+```{r}
+hamas_combined <- bind_rows(filtered_list)
+```
+
+### Arrange by date, remove Oct 06 and Oct 22
+
+```{r}
+hamas_combined <- hamas_combined |>
+  arrange(created_at) |>
+  filter(!(created_at %in% c("06", "22")))
+```
+
+### Filter English language (include "scots" english)
+
+```{r}
+hamas_combined$language <- textcat(hamas_combined$text)
+hamas_combined_eng <- hamas_combined |>
+  filter(language %in% c("english", "scots"))
+```
+
+### Delete replicated rows
+
+```{r}
+hamas_combined_clean <- hamas_combined_eng |>
+  mutate(clean(hamas_combined_eng$text)) |>
+  rename("cleaned_text" = "clean(hamas_combined_eng$text)") |>
+  select(cleaned_text, created_at, total_interactions_count) |>
+  distinct(cleaned_text, .keep_all = TRUE)
+```
+
+### Count tweets per day and plot changes
+
+```{r}
+hamas_count <- hamas_combined_clean |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
+  group_by(created_at) |>
+  count()
+```
+
+### Save combined dataset, remove unneeded dataframes
+
+```{r}
+write.csv(hamas_combined_clean,
+          file = "output/hamas_clean.csv",
+          row.names = FALSE)
+write.csv(hamas_count,
+          file = "output/hamas_count.csv",
+          row.names = FALSE)
+
+rm(df, df_list, filtered_list, file, file_names, file_path)
+
+```
+
+## Conflict ----
+
+### Load data
+```{r}
+file_names <- c("Conflict_0607.csv",
+                "Conflict_0708.csv",
+                "Conflict_0809.csv",
+                "Conflict_0910.csv",
+                "Conflict_1011.csv",
+                "Conflict_1112.csv",
+                "Conflict_1213.csv",
+                "Conflict_1314.csv",
+                "Conflict_1415.csv",
+                "Conflict_1516.csv",
+                "Conflict_1617.csv",
+                "Conflict_1718.csv",
+                "Conflict_1819.csv",
+                "Conflict_1920.csv",
+                "Conflict_2021.csv",
+                "Conflict_2122.csv")
+
+df_list <- list() # create empty list to store data frame
+
+for (file in file_names) {
+  file_path <- paste0("data/Conflict/", file)
+  df <- read.csv(file_path)
+  df_list[[file]] <- df
+}
+
+filtered_list <- lapply(df_list, filter_twitter)
+```
+
+
+### Combine datasets into one big dataset
+
+```{r}
+conflict_combined <- bind_rows(filtered_list)
+```
+
+### Arrange by date, remove Oct 06 and Oct 22
+
+```{r}
+conflict_combined <- conflict_combined |>
+  arrange(created_at) |>
+  filter(!(created_at %in% c("06", "22")))
+```
+
+### Filter English language (include "scots" english)
+
+```{r}
+conflict_combined$language <- textcat(conflict_combined$text)
+conflict_combined_eng <- conflict_combined |>
+  filter(language %in% c("english", "scots"))
+```
+
+### Delete replicated rows
+
+```{r}
+conflict_combined_clean <- conflict_combined_eng |>
+  mutate(clean(conflict_combined_eng$text)) |>
+  rename("cleaned_text" = "clean(conflict_combined_eng$text)") |>
+  select(cleaned_text, created_at, total_interactions_count) |>
+  distinct(cleaned_text, .keep_all = TRUE)
+```
+
+### Count tweets per day and plot changes
+
+```{r}
+conflict_count <- conflict_combined_clean |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
+  group_by(created_at) |>
+  count()
+```
+
+### Save combined dataset, remove unneeded dataframes
+
+```{r}
+write.csv(conflict_combined_clean,
+          file = "output/conflict_clean.csv",
+          row.names = FALSE)
+write.csv(conflict_count,
+          file = "output/conflict_count.csv",
+          row.names = FALSE)
+
+rm(df, df_list, filtered_list, file, file_names, file_path)
+```
+
+## Gaza ----
+
+### Load data
+```{r}
+file_names <- c("gaza_0607.csv",
+                "gaza_0708.csv",
+                "gaza_0809.csv",
+                "gaza_0910.csv",
+                "gaza_1011.csv",
+                "gaza_1112.csv",
+                "gaza_1213.csv",
+                "gaza_1314.csv",
+                "gaza_1415.csv",
+                "gaza_1516.csv",
+                "gaza_1617.csv",
+                "gaza_1718.csv",
+                "gaza_1819.csv",
+                "gaza_1920.csv",
+                "gaza_2021.csv",
+                "gaza_2122.csv")
+
+df_list <- list() # create empty list to store data frame
+
+for (file in file_names) {
+  file_path <- paste0("data/gaza/", file)
+  df <- read.csv(file_path)
+  df_list[[file]] <- df
+}
+```
+
+### For "gaza_1920", the total interaction count is recognized as characters 
+### therefore we need to change it to an integer
+
+```{r}
+df_list[["gaza_1920.csv"]][["total_interactions_count"]] <-
+  df_list[["gaza_1920.csv"]][["total_interactions_count"]] |>
+  as.integer()
+
+filtered_list <- lapply(df_list, filter_twitter)
+```
+
+### Combine datasets into one big dataset
+
+```{r}
+gaza_combined <- bind_rows(filtered_list)
+```
+
+### Arrange by date, remove Oct 06 and Oct 22
+
+```{r}
+gaza_combined <- gaza_combined |>
+  arrange(created_at) |>
+  filter(!(created_at %in% c("06", "22")))
+```
+
+### Filter English language (include "scots" english)
+
+```{r}
+gaza_combined$language <- textcat(gaza_combined$text)
+gaza_combined_eng <- gaza_combined |>
+  filter(language %in% c("english", "scots"))
+```
+
+### Delete replicated rows
+
+```{r}
+gaza_combined_clean <- gaza_combined_eng |>
+  mutate(clean(gaza_combined_eng$text)) |>
+  rename("cleaned_text" = "clean(gaza_combined_eng$text)") |>
+  select(cleaned_text, created_at, total_interactions_count) |>
+  distinct(cleaned_text, .keep_all = TRUE)
+```
+
+### Count tweets per day and plot changes
+
+```{r}
+gaza_count <- gaza_combined_clean |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
+  group_by(created_at) |>
+  count()
+```
+
+### Save combined dataset, remove unneeded dataframes
+
+```{r}
+write.csv(gaza_combined_clean,
+          file = "output/gaza_clean.csv",
+          row.names = FALSE)
+write.csv(gaza_count,
+          file = "output/gaza_count.csv",
+          row.names = FALSE)
+
+rm(df, df_list, filtered_list, file, file_names, file_path)
+```
+
+## Palestine ----
+
+### Load data
+```{r}
+file_names <- c("Palestine_0607.csv",
+                "Palestine_0708.csv",
+                "Palestine_0809.csv",
+                "Palestine_0910.csv",
+                "Palestine_1011.csv",
+                "Palestine_1112.csv",
+                "Palestine_1213.csv",
+                "Palestine_1314.csv",
+                "Palestine_1415.csv",
+                "Palestine_1516.csv",
+                "Palestine_1617.csv",
+                "Palestine_1718.csv",
+                "Palestine_1819.csv",
+                "Palestine_1920.csv",
+                "Palestine_2021.csv",
+                "Palestine_2122.csv")
+
+df_list <- list() # create empty list to store data frame
+
+for (file in file_names) {
+  file_path <- paste0("data/palestine/", file)
+  df <- read.csv(file_path)
+  df_list[[file]] <- df
+}
+
+filtered_list <- lapply(df_list, filter_twitter)
+```
+
+### Combine datasets into one big dataset
+
+```{r}
+palestine_combined <- bind_rows(filtered_list)
+```
+
+### Arrange by date, remove Oct 06 and Oct 22
+
+```{r}
+palestine_combined <- palestine_combined |>
+  arrange(created_at) |>
+  filter(!(created_at %in% c("06", "22")))
+```
+
+### Filter English language (include "scots" english)
+
+```{r}
+palestine_combined$language <- textcat(palestine_combined$text)
+palestine_combined_eng <- palestine_combined |>
+  filter(language %in% c("english", "scots"))
+```
+
+### Delete replicated rows
+
+```{r}
+palestine_combined_clean <- palestine_combined_eng |>
+  mutate(clean(palestine_combined_eng$text)) |>
+  rename("cleaned_text" = "clean(palestine_combined_eng$text)") |>
+  select(cleaned_text, created_at, total_interactions_count) |>
+  distinct(cleaned_text, .keep_all = TRUE)
+```
+
+### Count tweets per day and plot changes
+
+```{r}
+palestine_count <- palestine_combined_clean |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
+  group_by(created_at) |>
+  count()
+```
+
+### Save combined dataset, remove unneeded dataframes
+
+```{r}
+write.csv(palestine_combined_clean,
+          file = "output/palestine_clean.csv",
+          row.names = FALSE)
+write.csv(palestine_count,
+          file = "output/palestine_count.csv",
+          row.names = FALSE)
+
+rm(df, df_list, filtered_list, file, file_names, file_path)
+
+```
+
+## Combining five datasets ----
+
+```{r}
+d_israel <- read.csv("output/israel_clean.csv")
+d_conflict <- read.csv("output/conflict_clean.csv")
+d_hamas <- read.csv("output/hamas_clean.csv")
+d_gaza <- read.csv("output/gaza_clean.csv")
+d_palestine <- read.csv("output/palestine_clean.csv")
+
+d_combined <- bind_rows(d_israel, d_conflict, d_hamas, d_gaza, d_palestine)
+d_combined <- d_combined |>
+  distinct(cleaned_text, .keep_all = TRUE) |>
+  arrange(created_at)
+d_combined_count <- d_combined |>
+  group_by(created_at) |>
+  count()
+
+write.csv(d_combined,
+          file = "output/combined_clean.csv",
+          row.names = FALSE)
+write.csv(d_combined_count,
+          file = "output/combined_count.csv",
+          row.names = FALSE)
+          
+```
+
+
+# Step 1.2 - Cleaning Tagged Tweets      
+## The following code synthesizes the two manually tagged datasets in "data"
+## folder, cleans the data, and produce a combined dataset in "output" folder.
+## Note: -1 (Pro-Palestine), 0 (Neutral), 1 (Pro-Israel)
+
+### Load data
+
+```{r}
+library(tidyverse)
+d_hamas_0721 <- read_csv("data/Hamas_0721_sentiment.csv")
+d_israel_0708 <- read_csv("data/Israel_0708_sentiment.csv")
+```
+
+### Clean Israel data
+
+```{r}
+d_israel_0708 <- d_israel_0708 |>
+  select(Tweet, Sentiment) |>
+  rename("text" = "Tweet", "sentiment" = "Sentiment")
+d_israel_0708 <- d_israel_0708[complete.cases(d_israel_0708), ]
+d_israel_0708$sentiment <- as.numeric(d_israel_0708$sentiment)
+```
+
+### Combine two datasets
+
+```{r}
+d_tagged <- bind_rows(d_hamas_0721, d_israel_0708)
+```
+
+### Clean emojis, etc.
+
+```{r}
+clean = function(text) {
+  text = iconv(text, "latin1", "ASCII", sub="") #change encoding
+  text = gsub("(@)\\w+", "", text) #remove numbers, alphabets after "@" (username)
+  text = gsub("(http|https)://.*", "", text) # remove links
+  text = gsub("[ \t]{2,}", "", text) #remove two blank spaces and tab
+  text = gsub("\\n"," ",text) # remove newline
+  text = gsub("\\s+"," ",text) # remove blank spaces
+  text = gsub("^\\s+|\\s+$","",text) # remove blank spaces
+  text = gsub("&.*;","",text) # remove special symbols and html
+  text = gsub("[^a-zA-Z0-9?!. ']","",text) # remove emojis
+}
+
+d_tagged_clean <- d_tagged |>
+  mutate(clean(d_tagged$text)) |>
+  rename("cleaned_text" = "clean(d_tagged$text)") |>
+  select(cleaned_text, sentiment) |>
+  distinct(cleaned_text, .keep_all = TRUE)
+
+write.csv(d_tagged_clean, file = "output/manually_tagged_sentiment.csv",
+          row.names = FALSE)
+
+d_tagged_count <- d_tagged_clean |>
+  group_by(sentiment) |>
+  count()
+print(d_tagged_count)
+
+```
+
+#Step 2 - Labelled Data Cleaning
+## Description: the following code makes the GPT labelled data ready for visualization and analysis
+
+```{r}
+library(tidyverse)
+```
+
+## Assign ID to original data ----
+
+```{r}
+d_all <- read.csv("output/combined_clean.csv")
+d_all_id <- d_all |>
+  mutate(id_of_tweet = seq(1000, length.out = nrow(d_all), by = 1))
+write.csv(d_all_id, "gpt_labelled_data/all_data.csv")
+```
+
+## Create a date and interaction column for GPT ----
+
+### Load GPT labelled data
+```{r}
+d_b1 <- readRDS("gpt_labelled_data/Batch_1.rds")
+d_b2 <- readRDS("gpt_labelled_data/Batch_2.rds")
+d_b3 <- readRDS("gpt_labelled_data/Batch_3.rds")
+d_b4 <- readRDS("gpt_labelled_data/Batch_4.rds")
+```
+
+### Read data with ID
+```{r}
+d_id <- read.csv("gpt_labelled_data/all_data.csv")
+```
+
+### Add "created_at" and "interaction_count" columns
+```{r}
+d1 <- inner_join(d_b1, d_id, by = "id_of_tweet") |>
+  select(-cleaned_text.y, -X)
+d2 <- inner_join(d_b2, d_id, by = "id_of_tweet") |>
+  select(-cleaned_text.y, -X)
+d3 <- inner_join(d_b3, d_id, by = "id_of_tweet") |>
+  select(-cleaned_text.y, -X)
+d4 <- inner_join(d_b4, d_id, by = "id_of_tweet") |>
+  select(-cleaned_text.y, -X)
+d <- bind_rows(d1, d2, d3, d4)
+```
+
+### Remove error
+
+```{r}
+d <- d |> filter(!grepl("1\\n1", sentiment))
+
+write.csv(d1, "gpt_output/batch1.csv")
+write.csv(d2, "gpt_output/batch2.csv")
+write.csv(d3, "gpt_output/batch3.csv")
+write.csv(d4, "gpt_output/batch4.csv")
+write.csv(d, "gpt_output/batch_all.csv")
+```
+
+## Add keyword columns ----
+
+### All
+
+```{r}
+d_id$cleaned_text <- tolower(d_id$cleaned_text)
+
+d_keywords <- d_id |>
+  mutate(cleaned_text = tolower(cleaned_text)) |>
+  mutate(keyword_israel = ifelse(str_detect(cleaned_text, paste0("israel")), 1, 0)) |>
+  mutate(keyword_gaza = ifelse(str_detect(cleaned_text, paste0("gaza")), 1, 0)) |>
+  mutate(keyword_palestine = ifelse(str_detect(cleaned_text, paste0("palestine")), 1, 0)) |>
+  mutate(keyword_hamas = ifelse(str_detect(cleaned_text, paste0("hamas")), 1, 0)) |>
+  mutate(keyword_conflict = ifelse(str_detect(cleaned_text, paste0("conflict")), 1, 0))
+
+write.csv(d_keywords, "gpt_output/all_keywords.csv")
+```
+
+### Batches
+
+```{r}
+d_batch <- read.csv("gpt_output/batch_all.csv")
+
+d_b_keywords <- d_batch |>
+  rename("cleaned_text" = "cleaned_text.x") |>
+  mutate(cleaned_text = tolower(cleaned_text)) |>
+  mutate(keyword_israel = ifelse(str_detect(cleaned_text, paste0("israel")), 1, 0)) |>
+  mutate(keyword_gaza = ifelse(str_detect(cleaned_text, paste0("gaza")), 1, 0)) |>
+  mutate(keyword_palestine = ifelse(str_detect(cleaned_text, paste0("palestine")), 1, 0)) |>
+  mutate(keyword_hamas = ifelse(str_detect(cleaned_text, paste0("hamas")), 1, 0)) |>
+  mutate(keyword_conflict = ifelse(str_detect(cleaned_text, paste0("conflict")), 1, 0))
+
+write.csv(d_b_keywords, "gpt_output/batch_all_keywords.csv")
+
+```
+
+#Step 3.1 - Data Visualisation
+## The following code visualises the data in graphs 
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(ggpie)
+library(cowplot)
+```
+
+### Read the entire dataset ----
+```{r}
+d <- read.csv("gpt_output/batch_all.csv")
+```
+
+### Pie chart ----
+
+```{r}
+d_pie <- d |>
+  mutate(sentiment = case_when(
+    sentiment == 1 ~ "Pro-Israel",
+    sentiment == 0 ~ "Neutral",
+    sentiment == -1 ~ "Pro-Palestine",
+    TRUE ~ as.character(sentiment)
+  ))
+
+ggpie(d_pie, sentiment) +
+  scale_fill_manual(values=c("#D3D3D3", "#486078FF", "#B7e4C7")) +
+  labs(title = "Sentiment Distribution")
+```
+
+
+### Stacked bar chart ----
+
+```{r}
+d_bar <- d |>
+  mutate(sentiment = case_when(
+    sentiment == 1 ~ "Pro-Israel",
+    sentiment == 0 ~ "Neutral",
+    sentiment == -1 ~ "Pro-Palestine",
+    is.na(sentiment) ~ "NA",
+    TRUE ~ as.character(sentiment)
+  ))
+
+d_bar |> mutate(sentiment = as.factor(sentiment)) |>
+  ggplot(aes(x = created_at, fill = sentiment)) +
+  geom_bar(position = "stack") +
+  scale_fill_manual(values = c("Pro-Israel" = "#486078FF", "Neutral" = "#D3D3D3", "Pro-Palestine" = "#B7e4C7", "NA" = "darkgray")) +
+  theme_classic() +
+  labs(title = "Interaction Count Per Day", x = "Date (Oct)", y = "Count") +
+  guides(fill = guide_legend(override.aes = list(color = c("#486078FF", "darkgray", "#B7e4C7", "white"))))
+```
+
+### Interaction count scatter plot ----
+
+```{r}
+d_interaction <- d |>
+  mutate(sentiment = case_when(
+    sentiment == 1 ~ "Pro-Israel",
+    sentiment == 0 ~ "Neutral",
+    sentiment == -1 ~ "Pro-Palestine",
+    TRUE ~ as.character(sentiment)
+  ))
+
+d_interaction <- d_interaction |>
+  mutate(sentiment = as.factor(sentiment))
+
+ggplot(d_interaction, aes(y = sentiment, x = total_interactions_count, color = sentiment)) +
+  geom_jitter(size = 0.5) +
+  scale_color_manual(values = c("Pro-Israel" = "#486078FF", "Neutral" = "#D3D3D3", "Pro-Palestine" = "#B7e4C7")) +
+  theme_bw() +
+  labs(title = "Total Interactions Per Tweet", x = "Interaction Count", y = "Sentiment") +
+  theme(panel.background = element_rect(fill = "white")) +
+  guides(color = FALSE)
+```
+
+### Keywords plotting ----
+
+```{r}
+d_keywords <- read.csv("gpt_output/batch_all_keywords.csv")
+
+d_is <- d_keywords |> filter(keyword_israel == 1)
+d_pa <- d_keywords |> filter(keyword_palestine == 1)
+d_co <- d_keywords |> filter(keyword_conflict == 1)
+d_ha <- d_keywords |> filter(keyword_hamas == 1)
+d_ga <- d_keywords |> filter(keyword_gaza == 1)
+```
+
+### Grid -----
+
+#### All
+
+```{r}
+d_avg_sen <- d_keywords |>
+  mutate(sentiment = as.numeric(sentiment)) |>
+  filter(!is.na(sentiment)) |>
+  group_by(created_at) |>
+  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
+p <- d_avg_sen |>
+  ggplot(aes(x = created_at, y = avg_sen)) +
+  geom_point(color = "darkgray", size = 1.5) +
+  geom_line(color = "#486078FF", size = 0.7) +
+  geom_smooth(method = "gam", se = FALSE, linetype = "dashed", color = "darkred", size = 0.7) +
+  labs(title = "All", x = "Date (Oct)", y = "Average Sentiment") +
+  theme_classic()
+```
+
+#### Israel
+
+```{r}
+d_avg_sen_is <- d_is |>
+  mutate(sentiment = as.numeric(sentiment)) |>
+  filter(!is.na(sentiment)) |>
+  group_by(created_at) |>
+  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
+p_is <- d_avg_sen_is |>
+  ggplot(aes(x = created_at, y = avg_sen)) +
+  geom_point(color = "darkgray", size = 1.5) +
+  geom_line(color = "#486078FF", size = 0.7) +
+  geom_smooth(method = "gam", se = FALSE, linetype = "dashed", color = "darkred", size = 0.7) +
+  labs(title = "Israel", x = "Date (Oct)", y = "Average Sentiment") +
+  theme_classic()
+```
+
+#### Palestine
+
+```{r}
+d_avg_sen_pa <- d_pa |>
+  mutate(sentiment = as.numeric(sentiment)) |>
+  filter(!is.na(sentiment)) |>
+  group_by(created_at) |>
+  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
+p_pa <- d_avg_sen_pa |>
+  ggplot(aes(x = created_at, y = avg_sen)) +
+  geom_point(color = "darkgray", size = 1.5) +
+  geom_line(color = "#486078FF", size = 0.7) +
+  geom_smooth(method = "gam", se = FALSE, linetype = "dashed", color = "darkred", size = 0.7) +
+  labs(title = "Palestine", x = "Date (Oct)", y = "Average Sentiment") +
+  theme_classic()
+```
+
+#### Conflict
+
+```{r}
+d_avg_sen_co <- d_co |>
+  mutate(sentiment = as.numeric(sentiment)) |>
+  filter(!is.na(sentiment)) |>
+  group_by(created_at) |>
+  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
+p_co <- d_avg_sen_co |>
+  ggplot(aes(x = created_at, y = avg_sen)) +
+  geom_point(color = "darkgray", size = 1.5) +
+  geom_line(color = "#486078FF", size = 0.7) +
+  geom_smooth(method = "gam", se = FALSE, linetype = "dashed", color = "darkred", size = 0.7) +
+  labs(title = "Conflict", x = "Date (Oct)", y = "Average Sentiment") +
+  theme_classic()
+```
+
+#### Hamas
+
+```{r}
+d_avg_sen_ha <- d_ha |>
+  mutate(sentiment = as.numeric(sentiment)) |>
+  filter(!is.na(sentiment)) |>
+  group_by(created_at) |>
+  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
+p_ha <- d_avg_sen_ha |>
+  ggplot(aes(x = created_at, y = avg_sen)) +
+  geom_point(color = "darkgray", size = 1.5) +
+  geom_line(color = "#486078FF", size = 0.7) +
+  geom_smooth(method = "gam", se = FALSE, linetype = "dashed", color = "darkred", size = 0.7) +
+  labs(title = "Hamas", x = "Date (Oct)", y = "Average Sentiment") +
+  theme_classic()
+```
+
+#### Gaza
+
+```{r}
+d_avg_sen_ga <- d_ga |>
+  mutate(sentiment = as.numeric(sentiment)) |>
+  filter(!is.na(sentiment)) |>
+  group_by(created_at) |>
+  summarise(avg_sen = mean(sentiment, na.rm = TRUE))
+p_ga <- d_avg_sen_ga |>
+  ggplot(aes(x = created_at, y = avg_sen)) +
+  geom_point(color = "darkgray", size = 1.5) +
+  geom_line(color = "#486078FF", size = 0.7) +
+  geom_smooth(method = "gam", se = FALSE, linetype = "dashed", color = "darkred", size = 0.7) +
+  labs(title = "Gaza", x = "Date (Oct)", y = "Average Sentiment") +
+  theme_classic()
+
+plot_grid(p, p_is, p_pa, p_co, p_ha, p_ga)
+ggsave("gpt_output/Sentiment_Keyword_Grid.png", width = 8, height = 6)
+```
+
+#### Add Colour ----
+
+```{r}
+ggplot() +
+  geom_point(data = d_avg_sen, mapping = aes(x = created_at, y = avg_sen), color = "darkred", linetype = "dashed") +
+  geom_line(data = d_avg_sen, mapping = aes(x = created_at, y = avg_sen), color = "darkred", linetype = "dashed") +
+  geom_text(aes(x = 20.5, y = -0.28, label = "All"), hjust = 0, color = "darkred") +
+  geom_point(data = d_avg_sen_co, mapping = aes(x = created_at, y = avg_sen), color = "darkgray") +
+  geom_line(data = d_avg_sen_co, mapping = aes(x = created_at, y = avg_sen), color = "darkgray") +
+  geom_text(aes(x = 19, y = -0.05, label = "Conflict"), hjust = 0, color = "darkgray") +
+  geom_point(data = d_avg_sen_ga, mapping = aes(x = created_at, y = avg_sen), color = "#009999") +
+  geom_line(data = d_avg_sen_ga, mapping = aes(x = created_at, y = avg_sen), color = "#009999") +
+  geom_text(aes(x = 20, y = -0.6, label = "Gaza"), hjust = 0, color = "#009999") +
+  geom_point(data = d_avg_sen_ha, mapping = aes(x = created_at, y = avg_sen), color = "black") +
+  geom_line(data = d_avg_sen_ha, mapping = aes(x = created_at, y = avg_sen), color = "black") +
+  geom_text(aes(x = 19.7, y = 0.2, label = "Hamas"), hjust = 0, color = "black") +
+  geom_point(data = d_avg_sen_is, mapping = aes(x = created_at, y = avg_sen), color = "#486078FF") +
+  geom_line(data = d_avg_sen_is, mapping = aes(x = created_at, y = avg_sen), color = "#486078FF") +
+  geom_text(aes(x = 20.2, y = -0.42, label = "Israel"), hjust = 0, color = "#486078FF") +
+  geom_point(data = d_avg_sen_pa, mapping = aes(x = created_at, y = avg_sen), color = "#B7e4C7") +
+  geom_line(data = d_avg_sen_pa, mapping = aes(x = created_at, y = avg_sen), color = "#B7e4C7") +
+  geom_text(aes(x = 18, y = -0.8, label = "Palestine"), hjust = 0, color = "#B7e4C7") +
+  labs(title = "Average Sentiments", x = "Dates (October)", y = "Average Sentiment") +
+  theme_bw()
+ggsave("gpt_output/Sentiment_Keyword_Colors.png", width = 8, height = 6)
+
+```
+
+# Step 3.2 - Text mining and word cloud generation
+## The following code involves text mining and the creation of word clouds
+
+### Load dataset and packages
+
+```{r}
+library(tidytext)
+library(SnowballC)
+library(ggwordcloud)
+
+data("stop_words")
+```
+
+### Israel ----
+
+```{r}
+d_is <- d |> filter(sentiment == 1)
+
+d_token_is = d_is |>
+  select(id_of_tweet, cleaned_text.x, sentiment) |>
+  unnest_tokens(word, cleaned_text.x) |>
+  anti_join(stop_words, by = "word") |>
+  mutate(stem = wordStem(word))
+ 
+word_freq_is = d_token_is |>
+  count(stem, sort = TRUE) |>
+  rename("word" = "stem")
+
+word_freq_top_is = word_freq_is |>
+  arrange(desc(n)) |>
+  slice(1:200) |>
+  filter(!(word %in% c("israel", "hama", "conflict", "gaza", "palestin")))
+
+word_freq_top_is |>
+  slice(1:100) |>
+  ggplot(aes(label = word, size = n)) +
+  scale_size_area(max_size = 14) +
+  geom_text_wordcloud() +
+  theme_minimal()
+```
+
+### Palestine ----
+
+```{r}
+d_pa <- d |> filter(sentiment == -1)
+
+d_token_pa = d_pa |>
+  select(id_of_tweet, cleaned_text.x, sentiment) |>
+  unnest_tokens(word, cleaned_text.x) |>
+  anti_join(stop_words, by = "word") |>
+  mutate(stem = wordStem(word))
+
+word_freq_pa = d_token_pa |>
+  count(stem, sort = TRUE) |>
+  rename("word" = "stem")
+
+word_freq_top_pa = word_freq_pa |>
+  arrange(desc(n)) |>
+  slice(1:200) |>
+  filter(!(word %in% c("israel", "hama", "conflict", "gaza", "palestin")))
+
+word_freq_top_pa |>
+  slice(1:100) |>
+  ggplot(aes(label = word, size = n)) +
+  scale_size_area(max_size = 14) +
+  geom_text_wordcloud() +
+  theme_minimal()
+```
+
+### Neutral ----
+
+```{r}
+d_nu <- d |> filter(sentiment == 0)
+
+d_token_nu = d_nu |>
+  select(id_of_tweet, cleaned_text.x, sentiment) |>
+  unnest_tokens(word, cleaned_text.x) |>
+  anti_join(stop_words, by = "word") |>
+  mutate(stem = wordStem(word))
+
+word_freq_nu = d_token_nu |>
+  count(stem, sort = TRUE) |>
+  rename("word" = "stem")
+
+word_freq_top_nu = word_freq_nu |>
+  arrange(desc(n)) |>
+  slice(1:200) |>
+  filter(!(word %in% c("israel", "hama", "conflict", "gaza", "palestin")))
+
+word_freq_top_nu |>
+  slice(1:100) |>
+  ggplot(aes(label = word, size = n)) +
+  scale_size_area(max_size = 14) +
+  geom_text_wordcloud() +
+  theme_minimal()
+```
+
+### Filtered (by GPT) ----
+
+```{r}
+d_fi <- d[is.na(d$sentiment), ]
+
+d_token_fi = d_fi |>
+  select(id_of_tweet, cleaned_text.x, sentiment) |>
+  unnest_tokens(word, cleaned_text.x) |>
+  anti_join(stop_words, by = "word") |>
+  mutate(stem = wordStem(word))
+
+word_freq_fi = d_token_fi |>
+  count(stem, sort = TRUE) |>
+  rename("word" = "stem")
+
+word_freq_top_fi = word_freq_fi |>
+  arrange(desc(n)) |>
+  slice(1:200) |>
+  filter(!(word %in% c("israel", "hama", "conflict", "gaza", "palestin")))
+
+word_freq_top_fi |>
+  slice(1:100) |>
+  ggplot(aes(label = word, size = n)) +
+  scale_size_area(max_size = 14) +
+  geom_text_wordcloud() +
+  theme_minimal()
+```
+
+
+
