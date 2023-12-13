@@ -1,6 +1,6 @@
 ---
 title: "Project Replication Dossier"
-subtitle: "Contributor: Jonathan Standing"
+subtitle: "Contributor: Jonathan Standing, Edrian Liu"
 date: "2023-12-12"
 output:
   pdf_document: default
@@ -17,7 +17,13 @@ This RMarkdown File summarizes all code (except for those related to GPT) in our
 
 ## Part 1 - Folders and Workflow
 
--   *introduce folders and the sequence (see README.md)*
+1. "data" - includes the original data downloaded from the Information Tracer, a research tool built by Zhouhan Chen.
+2. "code" - includes all code, including data cleaning, tagging, and visualisation. 
+3. "output" - includes the pre-processed and unlabeled data. 
+4. "GPT_code" - includes code used to train GPT. 
+5. "gpt_labelled_data" - includes the processed and labelled data. 
+6. "gpt_output" - includes the cleaned, labelled data; output figures. 
+7. "unused" - includes work not included in the final project. 
 
 \clearpage
 
@@ -25,9 +31,16 @@ This RMarkdown File summarizes all code (except for those related to GPT) in our
 
 ### Step 0 - Downloading Data from Info Tracer
 
--   *key words*
+Key Words: 
+- Conflict
+- Gaza 
+- Hamas
+- Israel
+- Palestine 
 
--   *start date & end date*
+Time Period:
+7th of October - 21st of October 
+*(data also downloaded for the 6th of October and 22nd of October as there is some overlap, however tweets from these days will be removed) 
 
 \clearpage
 
